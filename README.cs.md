@@ -47,7 +47,7 @@ kódu TOOCAA Studia. Podrobnosti a zdroje: **[PROTOCOL.md](PROTOCOL.md)**.
 
 | Soubor | Co to je |
 |---|---|
-| [`index.html`](index.html) | **Webová aplikace** (jediný soubor, bez buildu). USB přes Web Serial, Wi-Fi přes most, vestavěný simulátor. SVG → G-code, náhled drah, ověření, rámeček, odeslání úlohy, posun, konzole, audit `.lbdev`. CZ/EN. |
+| [`index.html`](index.html) | **Webová aplikace** (jediný soubor, bez buildu). Editor motivů (více objektů, posun/zvětšení/otáčení myší, kopírovat/vložit/duplikovat, kopie do mřížky, zpět/znovu, text, tvary, SVG, PNG/JPG s rozptylem, gravírování obrysu i výplně, předvolby materiálů, projekty) a ovládání stroje: USB přes Web Serial, Wi-Fi přes most, simulátor, ověření, rámeček, odeslání, posun, autofokus, vzduch, konzole, audit `.lbdev`. CZ/EN. |
 | [`nova.py`](nova.py) | Knihovna + CLI v Pythonu: `probe`, `info`, `status`, `jog`, `home`, `unlock`, `check`, `run`, `hold`, `resume`, `stop` |
 | [`bridge.py`](bridge.py) | Lokální most (WebSocket ↔ NOVA přes Wi-Fi/USB), který zároveň servíruje aplikaci offline |
 | [`PROTOCOL.md`](PROTOCOL.md) | Vše, co víme o protokolu NOVA (USB, Wi-Fi 8002, příkazy `FF`, profil), se zdroji |
@@ -117,13 +117,14 @@ počítač a stroj.
 
 - [x] Klient Grbl_ESP32 (USB/telnet), simulátor, testy
 - [x] Webová aplikace: SVG → G-code, náhled, ověření, rámeček, úloha, posun, konzole
+- [x] Editor: více objektů, posun/zvětšení/otáčení myší, kopírovat/vložit/duplikovat, kopie do mřížky, zpět/znovu, text (libovolné písmo v systému), obdélník/kruh, PNG/JPG s prahem/rozptylem, gravírování výplně, předvolby materiálů, ukládání projektů + automatické ukládání
+- [x] Rychlé odesílání (Grbl character counting)
 - [x] Audit `.lbdev` (CLI i v prohlížeči)
 - [x] Nalezen oficiální `.lbdev`: autofokus `G38.2`, počátek vzadu vlevo; vzduch M8/M9
 - [x] Wi-Fi přes WebSocket (`ws://IP:8002/ws`, stejně jako TOOCAA Studio)
 - [ ] Ověřit na skutečné NOVA (`probe`, `info`, autofokus, počátek)
 - [ ] Zaměřovací kříž / červené ukazovátko
-- [ ] Rastrové gravírování obrázků (dithering, řádkování)
-- [ ] Knihovna materiálů, vrstvy, projekty (SQLite/IndexedDB)
+- [ ] Gravírování ve stupních šedi (proměnný výkon), výběr více objektů / seskupení, zarovnání
 - [ ] Kamera: stream, kalibrace, umístění motivu na fotku plochy
 
 ## Zdroje

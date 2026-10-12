@@ -48,7 +48,7 @@ public TOOCAA Studio code. Details and sources: **[PROTOCOL.md](PROTOCOL.md)**.
 
 | File | What it is |
 |---|---|
-| [`index.html`](index.html) | **The web app** (single file, no build step). USB over Web Serial, Wi-Fi via the bridge, built-in simulator. SVG → G-code, toolpath preview, check mode, frame, job streaming, jog, console, `.lbdev` audit. CZ/EN. |
+| [`index.html`](index.html) | **The web app** (single file, no build step). A design editor (several objects, drag/resize/rotate, copy/paste/duplicate, grid arrays, undo/redo, text, shapes, SVG, PNG/JPG with dithering, line and fill engraving, material presets, projects) plus machine control: USB over Web Serial, Wi-Fi via the bridge, built-in simulator, check mode, frame, streaming, jog, autofocus, air assist, console, `.lbdev` audit. CZ/EN. |
 | [`nova.py`](nova.py) | Python library + CLI: `probe`, `info`, `status`, `jog`, `home`, `unlock`, `check`, `run`, `hold`, `resume`, `stop` |
 | [`bridge.py`](bridge.py) | Localhost bridge (WebSocket ↔ NOVA over Wi-Fi/USB) that also serves the web app offline |
 | [`PROTOCOL.md`](PROTOCOL.md) | Everything known about the NOVA protocol (USB, Wi-Fi 8002, `FF` commands, profile) with sources |
@@ -119,13 +119,14 @@ computer and the machine.
 
 - [x] Grbl_ESP32 client (USB/telnet), simulator, tests
 - [x] Web app: SVG → G-code, preview, check, frame, run, jog, console
+- [x] Editor: several objects, drag/resize/rotate, copy/paste/duplicate, grid array, undo/redo, text (any system font), rectangle/circle, PNG/JPG with threshold/dither, fill engraving, material presets, project save/load + autosave
+- [x] Fast streaming (Grbl character counting)
 - [x] `.lbdev` audit (CLI + browser)
 - [x] Official `.lbdev` found: autofocus `G38.2`, origin rear-left; air assist M8/M9
 - [x] Wi-Fi WebSocket transport (`ws://IP:8002/ws`, as TOOCAA Studio)
 - [ ] Verify on a real NOVA (`probe`, `info`, autofocus, origin)
 - [ ] Crosshair / red-dot pointer
-- [ ] Raster engraving of bitmaps (dithering, scanline)
-- [ ] Material library, layers, projects (SQLite/IndexedDB)
+- [ ] Grayscale (variable power) image engraving, multi-select / grouping, alignment tools
 - [ ] Camera: stream, calibration, placing designs on a photo of the bed
 
 ## Sources

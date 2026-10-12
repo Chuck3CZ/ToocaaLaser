@@ -4,53 +4,61 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>ToocaaLaser</title>
-<meta name="description" content="Local, cloud-free control for the TOOCAA NOVA laser engraver – USB (Web Serial), Wi-Fi via a localhost bridge, or the built-in simulator.">
+<meta name="description" content="Local, cloud-free design and control for the TOOCAA NOVA laser engraver – USB (Web Serial), Wi-Fi via a localhost bridge, or the built-in simulator.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23111827'/%3E%3Cpath d='M16 5v10' stroke='%23f97316' stroke-width='3' stroke-linecap='round'/%3E%3Ccircle cx='16' cy='21' r='5' fill='%23f97316'/%3E%3C/svg%3E">
 <style>
 :root{
   --bg:#f4f5f7;--panel:#ffffff;--fg:#14171c;--mut:#5d6573;--line:#dde1e7;--field:#f8f9fb;
   --acc:#2457d6;--acc-fg:#ffffff;--ok:#157a3b;--warn:#a15c07;--bad:#c81e1e;--bad-fg:#ffffff;
-  --burn:#e8590c;--travel:#9aa5b4;--bed:#fbf8f2;--grid:#ebe5da;--grid2:#d9d0c1;--head:#2457d6;
+  --burn:#e8590c;--travel:#9aa5b4;--bed:#fbf8f2;--grid:#ebe5da;--grid2:#d9d0c1;--head:#2457d6;--ink:#2b2118;--sel:#2457d6;
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
     --bg:#0e1116;--panel:#171b22;--fg:#e7eaf0;--mut:#9aa3b2;--line:#29303b;--field:#11151b;
     --acc:#5b8cff;--acc-fg:#08142e;--ok:#3ecf7a;--warn:#f0a73a;--bad:#ff5a5a;--bad-fg:#ffffff;
-    --burn:#ff8a3d;--travel:#4a5566;--bed:#1d1a16;--grid:#2a2620;--grid2:#3a342b;--head:#7aa2ff;
+    --burn:#ff8a3d;--travel:#4a5566;--bed:#1d1a16;--grid:#2a2620;--grid2:#3a342b;--head:#7aa2ff;--ink:#f3e3cf;--sel:#7aa2ff;
   }
 }
 :root[data-theme="dark"]{
   --bg:#0e1116;--panel:#171b22;--fg:#e7eaf0;--mut:#9aa3b2;--line:#29303b;--field:#11151b;
   --acc:#5b8cff;--acc-fg:#08142e;--ok:#3ecf7a;--warn:#f0a73a;--bad:#ff5a5a;--bad-fg:#ffffff;
-  --burn:#ff8a3d;--travel:#4a5566;--bed:#1d1a16;--grid:#2a2620;--grid2:#3a342b;--head:#7aa2ff;
+  --burn:#ff8a3d;--travel:#4a5566;--bed:#1d1a16;--grid:#2a2620;--grid2:#3a342b;--head:#7aa2ff;--ink:#f3e3cf;--sel:#7aa2ff;
 }
 *{box-sizing:border-box}
 html,body{margin:0;background:var(--bg);color:var(--fg)}
 body{font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;padding:0 16px 32px}
-header{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:14px 0;max-width:1240px;margin:0 auto}
+header{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:14px 0;max-width:1320px;margin:0 auto}
 header h1{font-size:19px;margin:0;letter-spacing:.2px}
 header .tag{color:var(--mut);font-size:13px;flex:1;min-width:180px}
 .lang button{padding:4px 8px;font-size:12px}
 .lang button.on{background:var(--acc);color:var(--acc-fg)}
-main{max-width:1240px;margin:0 auto;display:grid;gap:14px;grid-template-columns:minmax(0,1fr)}
-@media(min-width:980px){main{grid-template-columns:minmax(0,1.55fr) minmax(320px,1fr)}}
+main{max-width:1320px;margin:0 auto;display:grid;gap:14px;grid-template-columns:minmax(0,1fr)}
+@media(min-width:1020px){main{grid-template-columns:minmax(0,1.7fr) minmax(320px,1fr)}}
 .col{display:grid;gap:14px;align-content:start;min-width:0}
 section{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;min-width:0}
 h2{font-size:13px;text-transform:uppercase;letter-spacing:.6px;color:var(--mut);margin:0 0 10px;font-weight:600}
-button,select,input{font:inherit;color:var(--fg)}
-button{background:var(--field);border:1px solid var(--line);border-radius:8px;padding:8px 12px;cursor:pointer}
+button,select,input,textarea{font:inherit;color:var(--fg)}
+button{background:var(--field);border:1px solid var(--line);border-radius:8px;padding:7px 11px;cursor:pointer;white-space:nowrap}
 button:hover:not(:disabled){border-color:var(--acc)}
 button:disabled{opacity:.45;cursor:not-allowed}
 button.primary{background:var(--acc);color:var(--acc-fg);border-color:var(--acc);font-weight:600}
 button.stop{background:var(--bad);color:var(--bad-fg);border-color:var(--bad);font-weight:800;letter-spacing:.5px;padding:9px 18px}
-select,input[type=number],input[type=text],input[type=url]{background:var(--field);border:1px solid var(--line);border-radius:8px;padding:7px 8px;min-width:0}
+button.danger{color:var(--bad)}
+select,input[type=number],input[type=text],input[type=url],textarea{background:var(--field);border:1px solid var(--line);border-radius:8px;padding:6px 8px;min-width:0}
 input[type=number]{width:84px}
+input[type=range]{accent-color:var(--acc)}
 label{color:var(--mut);font-size:12.5px}
 .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .row+.row{margin-top:8px}
 .grow{flex:1;min-width:0}
 .note{color:var(--mut);font-size:12.5px;margin:8px 0 0}
 .warn{color:var(--warn)}
+.sep{width:1px;align-self:stretch;background:var(--line);margin:0 2px}
+.toolbar{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.toolbar button{padding:6px 10px}
+.filebtn{display:inline-flex}
+.filebtn span{display:inline-block;background:var(--acc);color:var(--acc-fg);border:1px solid var(--acc);border-radius:8px;padding:6px 10px;cursor:pointer;font-weight:600}
+.filebtn.plain span{background:var(--field);color:var(--fg);border-color:var(--line);font-weight:400}
 .badge{display:inline-block;padding:3px 10px;border-radius:999px;font-weight:700;font-size:12.5px;background:var(--field);border:1px solid var(--line)}
 .badge.Idle{color:var(--ok);border-color:var(--ok)}
 .badge.Run,.badge.Jog,.badge.Home,.badge.Check{color:var(--acc);border-color:var(--acc)}
@@ -64,28 +72,34 @@ label{color:var(--mut);font-size:12.5px}
 .check input{margin-top:3px}
 .pad{display:grid;grid-template-columns:repeat(3,48px);gap:5px}
 .pad button{height:44px;padding:0;font-size:17px}
-canvas#bed{width:100%;display:block;border-radius:8px;border:1px solid var(--line);background:var(--bed);touch-action:none}
+canvas#bed{width:100%;display:block;border-radius:8px;border:1px solid var(--line);background:var(--bed);touch-action:none;cursor:default}
 .stats{display:flex;gap:14px;flex-wrap:wrap;color:var(--mut);font-size:12.5px;margin-top:8px;font-variant-numeric:tabular-nums}
 .stats b{color:var(--fg)}
 .bar{height:8px;background:var(--field);border:1px solid var(--line);border-radius:6px;overflow:hidden;margin-top:10px}
 .bar>i{display:block;height:100%;width:0;background:var(--acc);transition:width .2s}
-.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:8px}
 .grid2 label{display:flex;flex-direction:column;gap:4px}
 .grid2 input,.grid2 select{width:100%}
+.props textarea{width:100%;min-height:54px;resize:vertical}
+.props h3{font-size:12px;color:var(--mut);text-transform:uppercase;letter-spacing:.5px;margin:14px 0 8px;font-weight:600}
+.objlist{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.objlist button{font-size:12.5px;padding:4px 9px}
+.objlist button.on{border-color:var(--sel);color:var(--sel);font-weight:600}
 pre{margin:0;font:12px/1.45 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;white-space:pre-wrap;word-break:break-word}
-#log{background:var(--field);border:1px solid var(--line);border-radius:8px;padding:8px;height:230px;overflow:auto}
+#log{background:var(--field);border:1px solid var(--line);border-radius:8px;padding:8px;height:220px;overflow:auto}
 #log .tx{color:var(--acc)}#log .bad{color:var(--bad)}#log .ok{color:var(--ok)}#log .msg{color:var(--warn)}#log .rx{color:var(--fg)}#log .sys{color:var(--mut)}
 #lbdevOut{background:var(--field);border:1px solid var(--line);border-radius:8px;padding:8px;max-height:320px;overflow:auto;margin-top:8px}
 #svgHost{position:absolute;left:-20000px;top:0;visibility:hidden;pointer-events:none}
-footer{max-width:1240px;margin:18px auto 0;color:var(--mut);font-size:12.5px}
+footer{max-width:1320px;margin:18px auto 0;color:var(--mut);font-size:12.5px}
 footer a,.note a{color:var(--acc)}
 .hidden{display:none!important}
+details summary{cursor:pointer;color:var(--mut);font-size:12.5px}
 </style>
 </head>
 <body>
 <header>
   <h1>ToocaaLaser</h1>
-  <div class="tag" data-i18n="tagline">Local control for TOOCAA NOVA – no cloud, no account</div>
+  <div class="tag" data-i18n="tagline">Local design &amp; control for TOOCAA NOVA – no cloud, no account</div>
   <div class="lang row"><button data-lang="cs">CZ</button><button data-lang="en">EN</button></div>
   <button class="stop" id="btnStop" title="Esc" disabled>STOP</button>
 </header>
@@ -93,34 +107,103 @@ footer a,.note a{color:var(--acc)}
 <main>
 <div class="col">
   <section>
-    <h2 data-i18n="h_work">Work area 297 × 210 mm</h2>
-    <canvas id="bed" aria-label="work area preview"></canvas>
-    <div class="stats" id="jobStats"></div>
-    <div class="bar"><i id="progress"></i></div>
+    <div class="toolbar">
+      <label class="filebtn"><input type="file" id="fileInput" accept=".svg,.png,.jpg,.jpeg,.webp,.bmp,.gif,.gcode,.nc,.gc,.ngc,.txt" class="hidden" multiple><span data-i18n="open_file">Open file…</span></label>
+      <button id="tText" data-i18n="t_text">Text</button>
+      <button id="tRect" data-i18n="t_rect">Rectangle</button>
+      <button id="tEllipse" data-i18n="t_ellipse">Circle</button>
+      <button id="tDemo" data-i18n="demo">Demo</button>
+      <span class="sep"></span>
+      <button id="tUndo" title="Ctrl+Z" data-i18n="undo">Undo</button>
+      <button id="tRedo" title="Ctrl+Y" data-i18n="redo">Redo</button>
+      <span class="sep"></span>
+      <button id="tCopy" title="Ctrl+C" data-i18n="copy">Copy</button>
+      <button id="tPaste" title="Ctrl+V" data-i18n="paste">Paste</button>
+      <button id="tDup" title="Ctrl+D" data-i18n="duplicate">Duplicate</button>
+      <button id="tDel" title="Delete" class="danger" data-i18n="delete">Delete</button>
+      <span class="sep"></span>
+      <button id="tSave" data-i18n="save_proj">Save project</button>
+      <label class="filebtn plain"><input type="file" id="projInput" accept=".json,.tlp" class="hidden"><span data-i18n="open_proj">Open project</span></label>
+      <button id="tClear" class="danger" data-i18n="clear_all">Clear</button>
+    </div>
+    <canvas id="bed" aria-label="work area"></canvas>
+    <div class="row" style="margin-top:8px;justify-content:space-between">
+      <div class="objlist" id="objList" style="margin-top:0"></div>
+      <label class="check" style="margin:0"><input type="checkbox" id="showPaths"><span data-i18n="show_paths">Show toolpaths</span></label>
+    </div>
+    <p class="note" id="editHint" data-i18n="edit_hint">Drag to move · corner ■ resizes · top ● rotates · arrows nudge 1 mm (Shift 10 mm) · Ctrl+C / Ctrl+V / Ctrl+D / Ctrl+Z</p>
+  </section>
+
+  <section class="props" id="propsCard">
+    <h2 data-i18n="h_props">Object</h2>
+    <p class="note" id="noSel" data-i18n="no_sel">Nothing selected – add text, a shape or open a file, then click it on the plate.</p>
+    <div id="rawBox" class="hidden">
+      <p class="note warn" id="rawNote"></p>
+      <button id="rawClose" data-i18n="raw_close">Close G-code, back to the editor</button>
+    </div>
+    <div id="props" class="hidden">
+      <div class="grid2">
+        <label><span data-i18n="p_name">Name</span><input type="text" data-prop="name"></label>
+        <label><span>X mm</span><input type="number" step="0.5" data-prop="x"></label>
+        <label><span>Y mm</span><input type="number" step="0.5" data-prop="y"></label>
+        <label><span data-i18n="p_w">Width mm</span><input type="number" step="0.5" min="0.5" data-prop="W"></label>
+        <label><span data-i18n="p_h">Height mm</span><input type="number" step="0.5" min="0.5" data-prop="H"></label>
+        <label><span data-i18n="p_rot">Rotation °</span><input type="number" step="1" data-prop="rot"></label>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <label class="check" style="margin:0"><input type="checkbox" id="lockAspect" checked><span data-i18n="lock">Keep proportions</span></label>
+        <button id="pFlipH" data-i18n="flip_h">Mirror ↔</button>
+        <button id="pFlipV" data-i18n="flip_v">Mirror ↕</button>
+        <button id="pCenter" data-i18n="center">Center on plate</button>
+      </div>
+      <div id="textBox" class="hidden">
+        <h3 data-i18n="h_text">Text</h3>
+        <textarea data-prop="text" spellcheck="false"></textarea>
+        <div class="row" style="margin-top:6px">
+          <select data-prop="font" id="fontSel" class="grow"></select>
+          <label class="check" style="margin:0"><input type="checkbox" data-prop="bold"><span data-i18n="bold">Bold</span></label>
+          <label class="check" style="margin:0"><input type="checkbox" data-prop="italic"><span data-i18n="italic">Italic</span></label>
+        </div>
+      </div>
+      <h3 data-i18n="h_process">Laser settings</h3>
+      <div class="row" style="margin-bottom:8px">
+        <select id="presetSel" class="grow" aria-label="material preset"></select>
+        <button id="presetSave" data-i18n="preset_save">Save as preset</button>
+      </div>
+      <div class="grid2">
+        <label><span data-i18n="mode">Mode</span><select data-prop="mode"><option value="line" data-i18n="mode_line">Line (outline)</option><option value="fill" data-i18n="mode_fill">Fill (engrave area)</option></select></label>
+        <label><span data-i18n="power">Power %</span><input type="number" min="0" max="100" step="1" data-prop="power"></label>
+        <label><span data-i18n="speed">Speed mm/min</span><input type="number" min="60" max="36000" step="100" data-prop="speed"></label>
+        <label><span data-i18n="passes">Passes</span><input type="number" min="1" max="20" step="1" data-prop="passes"></label>
+        <label class="fillOnly"><span data-i18n="interval">Line interval mm</span><input type="number" min="0.05" max="1" step="0.01" data-prop="interval"></label>
+      </div>
+      <div id="imgBox" class="hidden">
+        <h3 data-i18n="h_image">Image</h3>
+        <div class="row">
+          <label class="grow"><span data-i18n="threshold">Threshold</span> <b id="thrVal"></b><br><input type="range" min="1" max="254" data-prop="threshold" style="width:100%"></label>
+          <label class="check" style="margin:0"><input type="checkbox" data-prop="dither"><span data-i18n="dither">Dither (photos)</span></label>
+          <label class="check" style="margin:0"><input type="checkbox" data-prop="invert"><span data-i18n="invert">Invert</span></label>
+        </div>
+      </div>
+      <h3 data-i18n="h_array">Copy into a grid</h3>
+      <div class="row">
+        <label><span data-i18n="cols">Columns</span><br><input type="number" id="arrCols" value="3" min="1" max="50"></label>
+        <label><span data-i18n="rows">Rows</span><br><input type="number" id="arrRows" value="2" min="1" max="50"></label>
+        <label><span data-i18n="gap">Gap mm</span><br><input type="number" id="arrGap" value="5" min="0" step="0.5"></label>
+        <button id="arrMake" style="align-self:flex-end" data-i18n="make_array">Create copies</button>
+      </div>
+    </div>
   </section>
 
   <section>
-    <h2 data-i18n="h_design">Design &amp; job</h2>
+    <h2 data-i18n="h_job">Job</h2>
     <div class="row">
-      <label class="primary" style="display:inline-block">
-        <input type="file" id="fileInput" accept=".svg,.gcode,.nc,.gc,.ngc,.txt" class="hidden">
-        <span class="badge" style="cursor:pointer;padding:8px 12px" data-i18n="open_file">Open SVG or G-code…</span>
-      </label>
-      <span id="fileName" class="note" style="margin:0"></span>
-      <button id="btnDemo" data-i18n="demo">Demo design</button>
+      <label><span data-i18n="origin">Machine origin</span><br><select id="origin"><option value="rl" data-i18n="origin_rl" selected>Rear-left (TOOCAA profile)</option><option value="fl" data-i18n="origin_fl">Front-left (Y up)</option></select></label>
+      <label class="check" style="align-self:flex-end"><input type="checkbox" id="air"><span data-i18n="air">Air assist (M8/M9)</span></label>
     </div>
-    <div id="svgOpts" class="grid2" style="margin-top:12px">
-      <label><span data-i18n="power">Power %</span><input type="number" id="power" min="0" max="100" step="1" value="40"></label>
-      <label><span data-i18n="speed">Speed mm/min</span><input type="number" id="speed" min="60" max="36000" step="60" value="3000"></label>
-      <label><span data-i18n="passes">Passes</span><input type="number" id="passes" min="1" max="20" step="1" value="1"></label>
-      <label><span data-i18n="mode">Mode</span><select id="mode"><option value="M4" data-i18n="mode_m4">Engrave (M4 dynamic)</option><option value="M3" data-i18n="mode_m3">Cut (M3 constant)</option></select></label>
-      <label><span data-i18n="scale">Scale %</span><input type="number" id="scale" min="1" max="1000" step="1" value="100"></label>
-      <label><span data-i18n="posx">X from left mm</span><input type="number" id="posx" step="0.5" value="20"></label>
-      <label><span data-i18n="posy">Y from top mm</span><input type="number" id="posy" step="0.5" value="20"></label>
-      <label><span data-i18n="origin">Machine origin</span><select id="origin"><option value="rl" data-i18n="origin_rl" selected>Rear-left (TOOCAA profile)</option><option value="fl" data-i18n="origin_fl">Front-left (Y up)</option></select></label>
-    </div>
-    <label class="check"><input type="checkbox" id="air"><span data-i18n="air">Air assist (M8/M9, as TOOCAA Studio does)</span></label>
-    <div class="row" style="margin-top:6px">
+    <div class="stats" id="jobStats"></div>
+    <div class="bar"><i id="progress"></i></div>
+    <div class="row" style="margin-top:10px">
       <button id="btnCheck" data-i18n="check" disabled>Check (no motion)</button>
       <button id="btnFrame" data-i18n="frame" disabled>Frame (laser off)</button>
       <button id="btnRun" class="primary" data-i18n="run" disabled>Start job</button>
@@ -128,15 +211,6 @@ footer a,.note a{color:var(--acc)}
       <button id="btnDownload" data-i18n="download" disabled>Download .gcode</button>
     </div>
     <p class="note" id="jobNote"></p>
-  </section>
-
-  <section>
-    <h2 data-i18n="h_lbdev">LightBurn profile audit (.lbdev)</h2>
-    <div class="row">
-      <label><input type="file" id="lbdevInput" accept=".lbdev,.json,.xml,.lbzip,*/*" class="hidden"><span class="badge" style="cursor:pointer;padding:8px 12px" data-i18n="open_lbdev">Open toocaa_nova.lbdev…</span></label>
-    </div>
-    <p class="note" data-i18n="lbdev_note">Read in your browser only – nothing is uploaded. Shows device type, baud rate, bed size and every embedded G-code macro (autofocus, air assist, crosshair).</p>
-    <pre id="lbdevOut" class="hidden"></pre>
   </section>
 </div>
 
@@ -188,10 +262,10 @@ footer a,.note a{color:var(--acc)}
       <div class="grow" style="display:grid;gap:8px">
         <label><span data-i18n="step">Step mm</span><br><select id="step"><option>0.1</option><option>1</option><option selected>10</option><option>50</option></select></label>
         <label><span data-i18n="jogfeed">Feed mm/min</span><br><input type="number" id="jogFeed" value="3000" min="60" max="20000" step="100"></label>
-        <div class="row"><button id="btnUnlock" title="$X" data-i18n="unlock">Unlock</button><button id="btnHold" title="!">Hold</button><button id="btnResume" title="~">Resume</button></div>
-        <div class="row"><button id="btnFocus" title="G38.2" data-i18n="focus">Autofocus</button><button id="btnAirOn" title="M8" data-i18n="air_on">Air on</button><button id="btnAirOff" title="M9" data-i18n="air_off">Air off</button></div>
       </div>
     </div>
+    <div class="row" style="margin-top:8px"><button id="btnUnlock" title="$X" data-i18n="unlock">Unlock</button><button id="btnHold" title="!">Hold</button><button id="btnResume" title="~">Resume</button></div>
+    <div class="row"><button id="btnFocus" title="G38.2" data-i18n="focus">Autofocus</button><button id="btnAirOn" title="M8" data-i18n="air_on">Air on</button><button id="btnAirOff" title="M9" data-i18n="air_off">Air off</button></div>
   </section>
 
   <section>
@@ -205,12 +279,19 @@ footer a,.note a{color:var(--acc)}
       <button data-q="$I">$I</button><button data-q="$$">$$</button><button data-q="$G">$G</button><button data-q="?">?</button><button id="btnClear" data-i18n="clear">Clear</button>
     </div>
   </section>
+
+  <section>
+    <h2 data-i18n="h_lbdev">LightBurn profile audit (.lbdev)</h2>
+    <label class="filebtn plain"><input type="file" id="lbdevInput" accept=".lbdev,.json,.xml,*/*" class="hidden"><span data-i18n="open_lbdev">Open toocaa_nova.lbdev…</span></label>
+    <p class="note" data-i18n="lbdev_note">Read in your browser only – nothing is uploaded.</p>
+    <pre id="lbdevOut" class="hidden"></pre>
+  </section>
 </div>
 </main>
 
 <footer>
   <span data-i18n="footer">Unofficial project, not affiliated with TOOCAA. Talks to the machine's Grbl_ESP32 controller directly; nothing leaves your computer.</span>
-  <a href="https://github.com/chuck3cz/ToocaaLaser">GitHub</a>
+  <a href="https://github.com/Chuck3CZ/ToocaaLaser">GitHub</a>
 </footer>
 <div id="svgHost"></div>
 
@@ -220,23 +301,33 @@ const BED = {w: 297, h: 210};
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
 const sleep = ms => new Promise(r => setTimeout(r, ms));
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 
 // ---------------------------------------------------------------- i18n
 const T = {
   en: {
-    tagline: 'Local control for TOOCAA NOVA – no cloud, no account',
-    h_work: 'Work area 297 × 210 mm', h_design: 'Design & job', open_file: 'Open SVG or G-code…', demo: 'Demo design',
-    power: 'Power %', speed: 'Speed mm/min', passes: 'Passes', mode: 'Mode', mode_m4: 'Engrave (M4 dynamic)', mode_m3: 'Cut (M3 constant)',
-    scale: 'Scale %', posx: 'X from left mm', posy: 'Y from top mm', origin: 'Machine origin', origin_fl: 'Front-left (Y up)', origin_rl: 'Rear-left (TOOCAA profile)',
-    air: 'Air assist (M8/M9, as TOOCAA Studio does)', focus: 'Autofocus', air_on: 'Air on', air_off: 'Air off',
+    tagline: 'Local design & control for TOOCAA NOVA – no cloud, no account',
+    open_file: 'Open file…', t_text: 'Text', t_rect: 'Rectangle', t_ellipse: 'Circle', demo: 'Demo',
+    undo: 'Undo', redo: 'Redo', copy: 'Copy', paste: 'Paste', duplicate: 'Duplicate', delete: 'Delete',
+    save_proj: 'Save project', open_proj: 'Open project', clear_all: 'Clear', show_paths: 'Show toolpaths',
+    edit_hint: 'Drag to move · corner ■ resizes · top ● rotates · arrows nudge 1 mm (Shift 10 mm) · Ctrl+C / Ctrl+V / Ctrl+D / Ctrl+Z',
+    h_props: 'Object', no_sel: 'Nothing selected – add text, a shape or open a file (SVG, PNG, JPG), then click it on the plate.',
+    raw_close: 'Close G-code, back to the editor', raw_note: 'G-code file loaded – it runs exactly as written; the editor objects are ignored.',
+    p_name: 'Name', p_w: 'Width mm', p_h: 'Height mm', p_rot: 'Rotation °', lock: 'Keep proportions',
+    flip_h: 'Mirror ↔', flip_v: 'Mirror ↕', center: 'Center on plate', h_text: 'Text', bold: 'Bold', italic: 'Italic',
+    h_process: 'Laser settings', preset_save: 'Save as preset', preset_pick: 'Material preset…', preset_name: 'Preset name:',
+    mode: 'Mode', mode_line: 'Line (outline)', mode_fill: 'Fill (engrave area)', power: 'Power %', speed: 'Speed mm/min', passes: 'Passes', interval: 'Line interval mm',
+    h_image: 'Image', threshold: 'Threshold', dither: 'Dither (photos)', invert: 'Invert',
+    h_array: 'Copy into a grid', cols: 'Columns', rows: 'Rows', gap: 'Gap mm', make_array: 'Create copies',
+    h_job: 'Job', origin: 'Machine origin', origin_fl: 'Front-left (Y up)', origin_rl: 'Rear-left (TOOCAA profile)', air: 'Air assist (M8/M9)',
     check: 'Check (no motion)', frame: 'Frame (laser off)', run: 'Start job', pause: 'Pause', resume: 'Resume', download: 'Download .gcode',
-    h_lbdev: 'LightBurn profile audit (.lbdev)', open_lbdev: 'Open toocaa_nova.lbdev…',
-    lbdev_note: 'Read in your browser only – nothing is uploaded. Shows device type, baud rate, bed size and every embedded G-code macro (autofocus, air assist, crosshair).',
+    h_lbdev: 'LightBurn profile audit (.lbdev)', open_lbdev: 'Open toocaa_nova.lbdev…', lbdev_note: 'Read in your browser only – nothing is uploaded.',
     h_conn: 'Connection', usb: 'USB (Web Serial, Chrome/Edge)', wifi: 'Wi-Fi via local bridge', sim: 'Simulator (no machine)', connect: 'Connect', disconnect: 'Disconnect',
     h_status: 'Machine', laser: 'Laser', airk: 'Air', h_safety: 'Safety',
     allow_motion: 'Allow motion (jog, home, frame, job)', allow_laser: 'Allow laser (jobs that switch the beam on)',
     safety_note: "Both reset on every connect. Settings ($n=…) are never sent. The machine's lid interlock, flame and tilt sensors always stay in charge; STOP / Esc = feed hold + soft reset.",
-    h_jog: 'Jog (laser off)', step: 'Step mm', jogfeed: 'Feed mm/min', unlock: 'Unlock', h_console: 'Console', send: 'Send', clear: 'Clear',
+    h_jog: 'Jog (laser off)', step: 'Step mm', jogfeed: 'Feed mm/min', unlock: 'Unlock', focus: 'Autofocus', air_on: 'Air on', air_off: 'Air off',
+    h_console: 'Console', send: 'Send', clear: 'Clear',
     footer: "Unofficial project, not affiliated with TOOCAA. Talks to the machine's Grbl_ESP32 controller directly; nothing leaves your computer.",
     note_usb: 'Plug the NOVA in over USB, click Connect and pick its port. Needs Chrome or Edge on desktop.',
     note_wifi: 'Run on your computer: python3 bridge.py --port <NOVA IP> (NOVA Wi-Fi WebSocket, port 8002), then confirm the connection on the NOVA touchscreen. An https page may only reach the NOVA through localhost.',
@@ -244,25 +335,35 @@ const T = {
     no_webserial: 'This browser has no Web Serial – use Chrome or Edge on desktop, or the Wi-Fi bridge.',
     need_motion: 'Refused: tick “Allow motion” first.', need_laser: 'Refused: this job switches the laser on – tick “Allow laser”.',
     forbidden: 'Refused: settings/system commands are never sent from here (use the touchscreen or LightBurn).',
-    no_job: 'Load a design first.', out_of_bed: 'Design is outside the 297 × 210 mm work area.',
+    no_job: 'Add something to the plate first.', out_of_bed: 'Something is outside the 297 × 210 mm work area.',
     laser_mode: 'Controller reports $32 (laser mode) ≠ 1 – laser jobs are blocked.',
     confirm_laser: 'Allow laser jobs?\n\nLid closed, material flat, extraction running, someone watching the machine for the whole job.',
-    lines: 'lines', burn: 'burn', est: 'est.', size: 'size',
+    confirm_clear: 'Remove everything from the plate?',
+    lines: 'lines', burn: 'burn', est: 'est.', size: 'size', objects: 'objects', new_text: 'Text',
   },
   cs: {
-    tagline: 'Lokální ovládání TOOCAA NOVA – bez cloudu, bez účtu',
-    h_work: 'Pracovní plocha 297 × 210 mm', h_design: 'Motiv a úloha', open_file: 'Otevřít SVG nebo G-code…', demo: 'Ukázkový motiv',
-    power: 'Výkon %', speed: 'Rychlost mm/min', passes: 'Průchody', mode: 'Režim', mode_m4: 'Gravírování (M4 dynamický)', mode_m3: 'Řezání (M3 konstantní)',
-    scale: 'Měřítko %', posx: 'X zleva mm', posy: 'Y shora mm', origin: 'Počátek stroje', origin_fl: 'Vpředu vlevo (Y nahoru)', origin_rl: 'Vzadu vlevo (profil TOOCAA)',
-    air: 'Vzduch (air assist) M8/M9, stejně jako TOOCAA Studio', focus: 'Autofokus', air_on: 'Vzduch zap.', air_off: 'Vzduch vyp.',
+    tagline: 'Lokální návrh a ovládání TOOCAA NOVA – bez cloudu, bez účtu',
+    open_file: 'Otevřít soubor…', t_text: 'Text', t_rect: 'Obdélník', t_ellipse: 'Kruh', demo: 'Ukázka',
+    undo: 'Zpět', redo: 'Znovu', copy: 'Kopírovat', paste: 'Vložit', duplicate: 'Duplikovat', delete: 'Smazat',
+    save_proj: 'Uložit projekt', open_proj: 'Otevřít projekt', clear_all: 'Vyčistit', show_paths: 'Zobrazit dráhy',
+    edit_hint: 'Táhnutím posuneš · roh ■ mění velikost · horní ● otáčí · šipky posun o 1 mm (Shift 10 mm) · Ctrl+C / Ctrl+V / Ctrl+D / Ctrl+Z',
+    h_props: 'Objekt', no_sel: 'Nic není vybrané – přidej text, tvar nebo otevři soubor (SVG, PNG, JPG) a klikni na něj na ploše.',
+    raw_close: 'Zavřít G-code, zpět do editoru', raw_note: 'Načtený G-code se pošle přesně tak, jak je; objekty v editoru se ignorují.',
+    p_name: 'Název', p_w: 'Šířka mm', p_h: 'Výška mm', p_rot: 'Otočení °', lock: 'Zachovat poměr stran',
+    flip_h: 'Zrcadlit ↔', flip_v: 'Zrcadlit ↕', center: 'Na střed plochy', h_text: 'Text', bold: 'Tučně', italic: 'Kurzíva',
+    h_process: 'Nastavení laseru', preset_save: 'Uložit jako předvolbu', preset_pick: 'Předvolba materiálu…', preset_name: 'Název předvolby:',
+    mode: 'Režim', mode_line: 'Čára (obrys)', mode_fill: 'Výplň (gravírování plochy)', power: 'Výkon %', speed: 'Rychlost mm/min', passes: 'Průchody', interval: 'Rozteč řádků mm',
+    h_image: 'Obrázek', threshold: 'Práh', dither: 'Rozptyl (fotky)', invert: 'Invertovat',
+    h_array: 'Kopírovat do mřížky', cols: 'Sloupce', rows: 'Řádky', gap: 'Mezera mm', make_array: 'Vytvořit kopie',
+    h_job: 'Úloha', origin: 'Počátek stroje', origin_fl: 'Vpředu vlevo (Y nahoru)', origin_rl: 'Vzadu vlevo (profil TOOCAA)', air: 'Vzduch (M8/M9)',
     check: 'Ověřit (bez pohybu)', frame: 'Rámeček (laser vyp.)', run: 'Spustit úlohu', pause: 'Pauza', resume: 'Pokračovat', download: 'Stáhnout .gcode',
-    h_lbdev: 'Audit profilu LightBurn (.lbdev)', open_lbdev: 'Otevřít toocaa_nova.lbdev…',
-    lbdev_note: 'Čte se jen v prohlížeči – nic se nikam neposílá. Ukáže typ zařízení, rychlost linky, rozměry plochy a všechna vložená G-code makra (autofokus, vzduch, zaměřovací kříž).',
+    h_lbdev: 'Audit profilu LightBurn (.lbdev)', open_lbdev: 'Otevřít toocaa_nova.lbdev…', lbdev_note: 'Čte se jen v prohlížeči – nic se nikam neposílá.',
     h_conn: 'Připojení', usb: 'USB (Web Serial, Chrome/Edge)', wifi: 'Wi-Fi přes lokální most', sim: 'Simulátor (bez stroje)', connect: 'Připojit', disconnect: 'Odpojit',
     h_status: 'Stroj', laser: 'Laser', airk: 'Vzduch', h_safety: 'Bezpečnost',
     allow_motion: 'Povolit pohyb (posun, home, rámeček, úloha)', allow_laser: 'Povolit laser (úlohy se zapnutým paprskem)',
     safety_note: 'Obojí se vypne při každém připojení. Nastavení ($n=…) se nikdy neposílá. Blokování víka, čidla plamene a náklonu ve stroji mají vždy přednost; STOP / Esc = pozastavení + soft reset.',
-    h_jog: 'Posun (laser vyp.)', step: 'Krok mm', jogfeed: 'Rychlost mm/min', unlock: 'Odemknout', h_console: 'Konzole', send: 'Odeslat', clear: 'Vymazat',
+    h_jog: 'Posun (laser vyp.)', step: 'Krok mm', jogfeed: 'Rychlost mm/min', unlock: 'Odemknout', focus: 'Autofokus', air_on: 'Vzduch zap.', air_off: 'Vzduch vyp.',
+    h_console: 'Konzole', send: 'Odeslat', clear: 'Vymazat',
     footer: 'Neoficiální projekt, nemá vztah k TOOCAA. Komunikuje přímo s řadičem Grbl_ESP32 ve stroji; nic neopouští tvůj počítač.',
     note_usb: 'Připoj NOVA přes USB, klikni na Připojit a vyber její port. Potřebuje Chrome nebo Edge na počítači.',
     note_wifi: 'Na počítači spusť: python3 bridge.py --port <IP NOVA> (Wi-Fi WebSocket NOVA, port 8002) a připojení potvrď na displeji NOVA. Stránka přes https se k NOVA dostane jen přes localhost.',
@@ -270,13 +371,15 @@ const T = {
     no_webserial: 'Tento prohlížeč nemá Web Serial – použij Chrome nebo Edge na počítači, nebo Wi-Fi most.',
     need_motion: 'Odmítnuto: nejdřív zaškrtni „Povolit pohyb“.', need_laser: 'Odmítnuto: úloha zapíná laser – zaškrtni „Povolit laser“.',
     forbidden: 'Odmítnuto: nastavení a systémové příkazy se odsud nikdy neposílají (použij displej nebo LightBurn).',
-    no_job: 'Nejdřív načti motiv.', out_of_bed: 'Motiv přesahuje pracovní plochu 297 × 210 mm.',
+    no_job: 'Nejdřív něco přidej na plochu.', out_of_bed: 'Něco přesahuje pracovní plochu 297 × 210 mm.',
     laser_mode: 'Řadič hlásí $32 (laserový režim) ≠ 1 – laserové úlohy jsou zablokované.',
     confirm_laser: 'Povolit laserové úlohy?\n\nVíko zavřené, materiál rovně, odsávání běží a někdo stroj po celou dobu hlídá.',
-    lines: 'řádků', burn: 'pálení', est: 'odhad', size: 'rozměr',
+    confirm_clear: 'Odstranit z plochy všechno?',
+    lines: 'řádků', burn: 'pálení', est: 'odhad', size: 'rozměr', objects: 'objektů', new_text: 'Text',
   },
 };
-let lang = (localStorage.getItem('tl-lang') || navigator.language || 'en').toLowerCase().startsWith('cs') ? 'cs' : 'en';
+let lang = 'en';
+try { lang = (localStorage.getItem('tl-lang') || navigator.language || 'en').toLowerCase().startsWith('cs') ? 'cs' : 'en'; } catch { lang = (navigator.language || '').toLowerCase().startsWith('cs') ? 'cs' : 'en'; }
 const t = k => (T[lang] && T[lang][k]) || T.en[k] || k;
 function applyLang() {
   document.documentElement.lang = lang;
@@ -284,7 +387,8 @@ function applyLang() {
   $$('[data-lang]').forEach(b => b.classList.toggle('on', b.dataset.lang === lang));
   $('#btnConnect').textContent = t(app.link ? 'disconnect' : 'connect');
   $('#btnPause').textContent = t(app.paused ? 'resume' : 'pause');
-  updateConnNote(); updateJobInfo();
+  $('#rawNote').textContent = t('raw_note');
+  fillPresets(); updateConnNote(); updateJobInfo();
 }
 
 // ---------------------------------------------------------------- Grbl helpers (mirror nova.py)
@@ -509,10 +613,11 @@ class SimLink {
   }
 }
 
+
 // ---------------------------------------------------------------- protocol client
 class Grbl {
   constructor(link, log) {
-    this.link = link; this.log = log; this.buf = ''; this.pending = null; this.quiet = false;
+    this.link = link; this.log = log; this.buf = ''; this.pending = null; this.pipe = null; this.quiet = false;
     this.lock = Promise.resolve(); this.wq = Promise.resolve(); this.waiters = []; this.last = null; this.wco = [0, 0, 0];
     this.onStatus = () => {}; this.onMsg = () => {};
     link.onData = s => this.feed(s);
@@ -536,13 +641,20 @@ class Grbl {
     const p = this.pending, isErr = /^(error|ALARM)/.test(line);
     if (!(this.quiet && line === 'ok')) this.log('< ' + redact(line), isErr ? 'bad' : (line[0] === '[' || line.startsWith('Grbl') ? 'msg' : 'rx'));
     let m;
+    if (this.pipe) {  // streaming a job: every ok/error acknowledges the oldest line in flight
+      if (line === 'ok') return this.pipe.ack();
+      if ((m = line.match(/^error:(\d+)/))) return this.pipe.fail(new GrblErr('error', +m[1], this.pipe.current()));
+    }
     if (line === 'ok') { if (p) { this.pending = null; p.resolve(p.lines); } return; }
     if ((m = line.match(/^error:(\d+)/))) { if (p) { this.pending = null; p.reject(new GrblErr('error', +m[1], p.cmd)); } return; }
     if ((m = line.match(/^ALARM:(\d+)/))) { this.onMsg(line); this.abortPending(new GrblErr('alarm', +m[1])); return; }
-    if (line.startsWith('Grbl ')) { this.onMsg(line); if (p && p.cmd !== '$C') this.abortPending(new Error('controller reset')); return; }
+    if (line.startsWith('Grbl ')) { this.onMsg(line); if (!(p && p.cmd === '$C')) this.abortPending(new Error('controller reset')); return; }
     if (p) p.lines.push(line); else this.onMsg(line);
   }
-  abortPending(err) { const p = this.pending; if (p) { this.pending = null; p.reject(err); } }
+  abortPending(err) {
+    const p = this.pending; if (p) { this.pending = null; p.reject(err); }
+    if (this.pipe) this.pipe.fail(err);
+  }
   write(s) { this.wq = this.wq.then(() => this.link.write(s)).catch(e => this.log('write failed: ' + e.message, 'bad')); return this.wq; }
   rt(ch) { if (ch !== '?') this.log('> RT ' + JSON.stringify(ch), 'tx'); return this.write(ch); }
   cmd(line, timeout = 10000) {
@@ -562,11 +674,44 @@ class Grbl {
       this.waiters.push(st => { clearTimeout(to); res(st); }); this.write('?');
     });
   }
+  // Grbl "character counting" streaming: keep the controller's RX buffer
+  // (127 B on classic Grbl, more on ESP32) full without overflowing it.
+  // guard() is called before every send and throws to abort the job.
+  streamLines(lines, onAck, guard, isPaused) {
+    const RX = 120;
+    return new Promise((resolve, reject) => {
+      let sent = 0, acked = 0, inflight = 0, done = false, timer = null;
+      const lens = [];
+      const finish = err => {
+        if (done) return; done = true; this.pipe = null; clearInterval(timer);
+        err ? reject(err) : resolve(acked);
+      };
+      const pump = () => {
+        if (done) return;
+        try { guard(); } catch (e) { return finish(e); }
+        if (isPaused()) return;
+        let chunk = '';
+        while (sent < lines.length) {
+          const n = lines[sent].length + 1;
+          if (inflight > 0 && inflight + n > RX) break;
+          chunk += lines[sent] + '\n'; lens.push(n); inflight += n; sent++;
+        }
+        if (chunk) this.write(chunk);
+      };
+      this.pipe = {
+        ack: () => { inflight -= lens.shift() || 0; acked++; onAck(acked); if (acked >= lines.length) return finish(); pump(); },
+        fail: e => finish(e),
+        current: () => lines[acked] || '',
+      };
+      timer = setInterval(pump, 100);
+      pump();
+    });
+  }
 }
 
 // ---------------------------------------------------------------- app state
 const app = {link: null, grbl: null, perms: {motion: false, laser: false}, settings: {}, exactBurn: false,
-  job: {name: '', kind: '', lines: [], polys: null, segs: [], bounds: null, len: 0, time: 0, inBed: true},
+  job: {lines: [], segs: [], bounds: null, len: 0, time: 0, inBed: true}, raw: null,
   running: false, paused: false, abort: false, burns: [], head: null, lastHead: null, poll: null};
 
 function log(text, cls = 'sys') {
@@ -583,10 +728,9 @@ function setPerms(motion, laser) {
   refreshButtons();
 }
 function refreshButtons() {
-  const c = !!app.link, r = app.running;
+  const c = !!app.link, r = app.running, hasJob = app.job.lines.length > 0;
   $('#btnStop').disabled = !c;
   $('#allowMotion').disabled = !c; $('#allowLaser').disabled = !c;
-  const hasJob = app.job.lines.length > 0;
   $('#btnCheck').disabled = !c || r || !hasJob;
   $('#btnFrame').disabled = !c || r || !hasJob || !app.perms.motion;
   $('#btnRun').disabled = !c || r || !hasJob || !app.perms.motion || !app.job.inBed;
@@ -596,6 +740,10 @@ function refreshButtons() {
   $('#btnHold').disabled = !c; $('#btnResume').disabled = !c;
   $('#btnSend').disabled = !c; $$('[data-q]').forEach(b => b.disabled = !c);
   $('#linkType').disabled = c;
+  const s = !!ed.sel && !app.raw;
+  $('#tCopy').disabled = !s; $('#tDup').disabled = !s; $('#tDel').disabled = !s;
+  $('#tPaste').disabled = !ed.clip || !!app.raw;
+  $('#tUndo').disabled = !ed.undo.length; $('#tRedo').disabled = !ed.redo.length;
 }
 function updateConnNote() {
   const v = $('#linkType').value;
@@ -645,7 +793,6 @@ function stopNow() {
   app.grbl.abortPending(new Error('stopped by user'));
   log('STOP: feed hold + soft reset', 'bad');
 }
-
 function onStatus(st) {
   const b = $('#state'); b.textContent = st.state + (st.sub ? ':' + st.sub : ''); b.className = 'badge ' + st.state;
   const p = st.pos || [0, 0, 0];
@@ -661,7 +808,6 @@ function onStatus(st) {
 }
 function addBurn(a, b) { app.burns.push([a[0], a[1], b[0], b[1]]); if (app.burns.length > 200000) app.burns.splice(0, 50000); draw(); }
 
-// ---------------------------------------------------------------- gated commands
 async function gated(line, timeout = 10000) {
   const kind = classify(line);
   if (kind === 'forbidden') { log(t('forbidden'), 'bad'); return null; }
@@ -677,7 +823,121 @@ async function jog(dx, dy) {
   await gated(`$J=G91 G21 ${w} F${f}`);
 }
 
-// ---------------------------------------------------------------- design -> G-code
+// ---------------------------------------------------------------- editor model
+// Objects live in "plate" coordinates: mm, origin top-left of the plate as
+// seen on screen, Y down. The machine origin is applied only when G-code is
+// generated. Each object: local box w × h (mm) scaled by sx/sy, rotated by
+// rot° around its centre; (x, y) = top-left of the unrotated scaled box.
+const ed = {objs: [], sel: null, images: {}, clip: null, undo: [], redo: [], nid: 1, srcSeq: 0};
+const isRaster = o => o.kind === 'image' || o.kind === 'text';
+const r2 = v => Math.round(v * 100) / 100;
+const f3 = v => (Math.round(v * 1000) / 1000).toString();
+
+function newObj(kind, props) {
+  const raster = kind === 'image' || kind === 'text';
+  return Object.assign({id: ed.nid++, kind, name: kind, x: 20, y: 20, w: 20, h: 20, sx: 1, sy: 1, rot: 0, flipH: false, flipV: false,
+    mode: raster ? 'fill' : 'line', power: 40, speed: raster ? 6000 : 3000, passes: 1, interval: 0.1,
+    threshold: 128, dither: false, invert: false}, props);
+}
+function geom(o) {
+  const cw = o.w * o.sx, ch = o.h * o.sy, a = o.rot * Math.PI / 180;
+  return {cw, ch, cx: o.x + cw / 2, cy: o.y + ch / 2, c: Math.cos(a), s: Math.sin(a)};
+}
+function toWorld(o, g, u, v) {
+  if (o.flipH) u = o.w - u;
+  if (o.flipV) v = o.h - v;
+  const px = u * o.sx - g.cw / 2, py = v * o.sy - g.ch / 2;
+  return [g.cx + px * g.c - py * g.s, g.cy + px * g.s + py * g.c];
+}
+function corners(o) { const g = geom(o); return [[0, 0], [o.w, 0], [o.w, o.h], [0, o.h]].map(([u, v]) => toWorld({...o, flipH: false, flipV: false}, g, u, v)); }
+function worldBBox(o) {
+  const cs = corners(o), xs = cs.map(p => p[0]), ys = cs.map(p => p[1]);
+  return {x0: Math.min(...xs), y0: Math.min(...ys), x1: Math.max(...xs), y1: Math.max(...ys)};
+}
+function localPolys(o) {
+  if (o.kind === 'vector') return o.polys;
+  if (o.kind === 'rect') return [[[0, 0], [o.w, 0], [o.w, o.h], [0, o.h], [0, 0]]];
+  if (o.kind === 'ellipse') {
+    const n = Math.max(64, Math.ceil(Math.PI * (o.w * o.sx + o.h * o.sy) / 0.4)), pts = [];
+    for (let i = 0; i <= n; i++) { const a = i / n * Math.PI * 2; pts.push([o.w / 2 + Math.cos(a) * o.w / 2, o.h / 2 + Math.sin(a) * o.h / 2]); }
+    return [pts];
+  }
+  return null;
+}
+function hitObj(p) {
+  for (let i = ed.objs.length - 1; i >= 0; i--) {
+    const o = ed.objs[i], g = geom(o), dx = p.x - g.cx, dy = p.y - g.cy;
+    const lx = dx * g.c + dy * g.s, ly = -dx * g.s + dy * g.c, tol = 6 / p.k;
+    if (Math.abs(lx) <= g.cw / 2 + tol && Math.abs(ly) <= g.ch / 2 + tol) return o;
+  }
+  return null;
+}
+function handles(o, k) {
+  const g = geom(o), L = (lx, ly) => [g.cx + lx * g.c - ly * g.s, g.cy + lx * g.s + ly * g.c];
+  return {scale: L(g.cw / 2, g.ch / 2), rot: L(0, -g.ch / 2 - 22 / k), top: L(0, -g.ch / 2)};
+}
+function fitToPlate(o) {
+  const g = geom(o), f = Math.min(1, BED.w * 0.9 / g.cw, BED.h * 0.9 / g.ch);
+  o.sx *= f; o.sy *= f;
+}
+function placeFree(o) {
+  const n = ed.objs.length % 8;
+  o.x = 15 + n * 8; o.y = 15 + n * 8;
+  const g = geom(o);
+  if (o.x + g.cw > BED.w) o.x = Math.max(0, BED.w - g.cw);
+  if (o.y + g.ch > BED.h) o.y = Math.max(0, BED.h - g.ch);
+}
+
+// undo / redo – snapshots of the object list (images are referenced by id)
+function snapshot() { return JSON.stringify({objs: ed.objs, sel: ed.sel ? ed.sel.id : null}); }
+function pushUndo(snap = snapshot()) { ed.undo.push(snap); if (ed.undo.length > 150) ed.undo.shift(); ed.redo = []; }
+function restore(s) { const d = JSON.parse(s); ed.objs = d.objs; ed.sel = ed.objs.find(o => o.id === d.sel) || null; afterEdit(); }
+function undo() { if (!ed.undo.length) return; ed.redo.push(snapshot()); restore(ed.undo.pop()); }
+function redo() { if (!ed.redo.length) return; ed.undo.push(snapshot()); restore(ed.redo.pop()); }
+
+function select(o) { ed.sel = o; syncProps(); renderObjList(); refreshButtons(); draw(); }
+function addObj(o) { pushUndo(); if (app.raw) app.raw = null; ed.objs.push(o); ed.sel = o; afterEdit(); }
+function deleteSel() { if (!ed.sel) return; pushUndo(); ed.objs = ed.objs.filter(o => o !== ed.sel); ed.sel = null; afterEdit(); }
+function copySel() { if (ed.sel) { ed.clip = JSON.stringify(ed.sel); refreshButtons(); } }
+function pasteClip(offset = 5) {
+  if (!ed.clip) return;
+  const o = JSON.parse(ed.clip); o.id = ed.nid++; o.x += offset; o.y += offset;
+  ed.clip = JSON.stringify(o); addObj(o);
+}
+function duplicateSel() { if (!ed.sel) return; const keep = ed.clip; ed.clip = JSON.stringify(ed.sel); pasteClip(); ed.clip = keep; refreshButtons(); }
+function makeArray() {
+  const o = ed.sel; if (!o) return;
+  const cols = clamp(Math.round(+$('#arrCols').value || 1), 1, 50), rows = clamp(Math.round(+$('#arrRows').value || 1), 1, 50);
+  const gap = Math.max(0, +$('#arrGap').value || 0), b = worldBBox(o);
+  const sx = b.x1 - b.x0 + gap, sy = b.y1 - b.y0 + gap;
+  pushUndo();
+  for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) {
+    if (!i && !j) continue;
+    const c = JSON.parse(JSON.stringify(o)); c.id = ed.nid++; c.x += i * sx; c.y += j * sy; c.name = `${o.name} ${j * cols + i + 1}`;
+    ed.objs.push(c);
+  }
+  afterEdit();
+}
+function centerSel() {
+  const o = ed.sel; if (!o) return;
+  pushUndo(); const b = worldBBox(o);
+  o.x += BED.w / 2 - (b.x0 + b.x1) / 2; o.y += BED.h / 2 - (b.y0 + b.y1) / 2; afterEdit();
+}
+let regenTimer = null, saveTimer = null;
+function afterEdit() {
+  syncProps(); renderObjList(); refreshButtons(); draw();
+  clearTimeout(regenTimer); regenTimer = setTimeout(regenerate, 250);
+  clearTimeout(saveTimer); saveTimer = setTimeout(autosave, 800);
+}
+function renderObjList() {
+  const box = $('#objList'); box.textContent = '';
+  for (const o of ed.objs) {
+    const b = document.createElement('button'); b.textContent = o.name || o.kind; b.className = o === ed.sel ? 'on' : '';
+    b.addEventListener('click', () => select(o)); box.append(b);
+  }
+}
+
+// ---------------------------------------------------------------- importers
 const unitMM = {mm: 1, cm: 10, in: 25.4, pt: 25.4 / 72, pc: 25.4 / 6, px: 25.4 / 96, '': 25.4 / 96};
 function lenMM(s) { const m = /^\s*([\d.]+)\s*(mm|cm|in|pt|pc|px)?\s*$/.exec(s || ''); return m ? +m[1] * unitMM[m[2] || ''] : null; }
 function rdp(pts, eps) {
@@ -717,8 +977,7 @@ function svgToPolys(text) {
     }
     const rootInv = svg.getScreenCTM().inverse();
     const polys = [];
-    const els = svg.querySelectorAll('path,line,polyline,polygon,rect,circle,ellipse');
-    for (const el of els) {
+    for (const el of svg.querySelectorAll('path,line,polyline,polygon,rect,circle,ellipse')) {
       if (el.closest('defs,clipPath,mask,symbol,marker,pattern')) continue;
       if (getComputedStyle(el).display === 'none') continue;
       const L = el.getTotalLength(); if (!(L > 0)) continue;
@@ -737,33 +996,193 @@ function svgToPolys(text) {
     return polys.map(p => rdp(p, 0.02)).filter(p => p.length > 1);
   } finally { host.textContent = ''; }
 }
-function bounds(polys) {
+function vectorObj(polys, name) {
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
   for (const p of polys) for (const [x, y] of p) { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); }
-  return {x0, y0, x1, y1};
+  const o = newObj('vector', {name, w: Math.max(0.1, x1 - x0), h: Math.max(0.1, y1 - y0),
+    polys: polys.map(p => p.map(([x, y]) => [r2(x - x0), r2(y - y0)]))});
+  fitToPlate(o); placeFree(o); return o;
 }
-const f3 = v => (Math.round(v * 1000) / 1000).toString();
-function placeAndGenerate() {
-  const src = app.job.polys; if (!src) return;
-  const s = (+$('#scale').value || 100) / 100, px = +$('#posx').value || 0, py = +$('#posy').value || 0;
-  const fl = $('#origin').value === 'fl', b = bounds(src);
-  const polys = src.map(p => p.map(([x, y]) => { const X = px + (x - b.x0) * s, Y = py + (y - b.y0) * s; return [X, fl ? BED.h - Y : Y]; }));
-  const smax = +app.settings.$30 || 1000, power = Math.min(100, Math.max(0, +$('#power').value || 0));
-  const S = Math.round(power / 100 * smax), F = Math.max(60, +$('#speed').value || 1000), passes = Math.max(1, Math.min(20, +$('#passes').value || 1));
-  const air = $('#air').checked, mode = $('#mode').value;
-  const L = [`; ToocaaLaser – ${app.job.name}`, `; ${mode} power ${power}% (S${S} of $30=${smax}), ${F} mm/min, ${passes} pass(es)`, 'G21 G90', `${mode} S0`];
+function cropAlpha(c) {
+  const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
+  let x0 = c.width, y0 = c.height, x1 = -1, y1 = -1;
+  for (let y = 0; y < c.height; y++) for (let x = 0; x < c.width; x++) if (d[(y * c.width + x) * 4 + 3] > 16) {
+    if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+  }
+  if (x1 < 0) { const e = document.createElement('canvas'); e.width = e.height = 1; return e; }
+  const out = document.createElement('canvas'); out.width = x1 - x0 + 1; out.height = y1 - y0 + 1;
+  out.getContext('2d').drawImage(c, x0, y0, out.width, out.height, 0, 0, out.width, out.height);
+  return out;
+}
+const FONTS = ['Arial', 'Helvetica', 'Verdana', 'Tahoma', 'Trebuchet MS', 'Segoe UI', 'Georgia', 'Times New Roman', 'Garamond', 'Courier New', 'Impact', 'Comic Sans MS', 'Brush Script MT', 'sans-serif', 'serif', 'monospace', 'cursive'];
+const GENERIC = new Set(['sans-serif', 'serif', 'monospace', 'cursive', 'fantasy']);
+function renderTextCanvas(o) {
+  const fs = 160, fam = GENERIC.has(o.font) ? o.font : `"${o.font}", sans-serif`;
+  const font = `${o.italic ? 'italic ' : ''}${o.bold ? '700 ' : '400 '}${fs}px ${fam}`;
+  const lines = (o.text || ' ').split('\n'), lh = fs * 1.25, pad = fs * 0.4;
+  const m = document.createElement('canvas').getContext('2d'); m.font = font;
+  const wmax = Math.max(1, ...lines.map(l => m.measureText(l).width));
+  const c = document.createElement('canvas'); c.width = Math.ceil(wmax + pad * 2); c.height = Math.ceil(lh * lines.length + pad * 2);
+  const x = c.getContext('2d'); x.font = font; x.fillStyle = '#000'; x.textBaseline = 'middle';
+  lines.forEach((l, i) => x.fillText(l, pad, pad + lh * (i + 0.5)));
+  return cropAlpha(c);
+}
+function setText(o, keepHeight) {
+  const c = renderTextCanvas(o), id = 't' + (++ed.srcSeq);
+  ed.images[id] = {canvas: c}; o.src = id;
+  const ch = keepHeight ? o.h * o.sy : o.h;
+  o.h = Math.max(0.5, ch); o.w = o.h * c.width / c.height; o.sx = o.sy = 1;
+}
+function addText(text = t('new_text')) {
+  const o = newObj('text', {name: text.split('\n')[0].slice(0, 16) || 'Text', text, font: 'Arial', bold: true, italic: false, h: 12});
+  setText(o, false); fitToPlate(o); placeFree(o); addObj(o);
+  setTimeout(() => { const ta = $('[data-prop="text"]'); ta.focus(); ta.select(); }, 0);
+}
+function addShape(kind) {
+  const o = newObj(kind, {name: kind === 'rect' ? 'Rect' : 'Circle', w: kind === 'rect' ? 40 : 30, h: 30});
+  placeFree(o); addObj(o);
+}
+async function addImageFile(file) {
+  const bmp = await createImageBitmap(file);
+  const sc = Math.min(1, 2000 / Math.max(bmp.width, bmp.height));
+  const c = document.createElement('canvas'); c.width = Math.max(1, Math.round(bmp.width * sc)); c.height = Math.max(1, Math.round(bmp.height * sc));
+  c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
+  const id = 'i' + (++ed.srcSeq); ed.images[id] = {canvas: c, url: c.toDataURL('image/png')};
+  const w = 60, o = newObj('image', {name: file.name.replace(/\.[^.]+$/, '').slice(0, 20), src: id, w, h: w * c.height / c.width});
+  fitToPlate(o); placeFree(o); addObj(o);
+}
+async function loadFiles(files) {
+  for (const file of files) {
+    try {
+      if (/\.svg$/i.test(file.name) || file.type === 'image/svg+xml') {
+        const polys = svgToPolys(await file.text());
+        if (!polys.length) { log('SVG has no drawable paths (convert text to paths first)', 'bad'); continue; }
+        addObj(vectorObj(polys, file.name.replace(/\.svg$/i, '').slice(0, 20)));
+      } else if (/^image\//.test(file.type) || /\.(png|jpe?g|webp|bmp|gif)$/i.test(file.name)) {
+        await addImageFile(file);
+      } else {
+        app.raw = {name: file.name, lines: (await file.text()).split(/\r?\n/)};
+        ed.sel = null; app.burns = []; afterEdit();
+        log(`G-code ${file.name}: ${app.raw.lines.length} lines` + (firesLaser(app.raw.lines) ? ' (uses the laser)' : ''), 'sys');
+        continue;
+      }
+      log('added ' + file.name, 'sys');
+    } catch (e) { log(file.name + ': ' + errText(e), 'bad'); }
+  }
+}
+const DEMO = `<svg xmlns="http://www.w3.org/2000/svg" width="80mm" height="50mm" viewBox="0 0 80 50">
+<rect x="1" y="1" width="78" height="48" rx="6" fill="none" stroke="#000"/>
+<path d="M14 36 L14 14 L26 14 M14 25 L23 25" fill="none" stroke="#000"/>
+<circle cx="40" cy="25" r="11" fill="none" stroke="#000"/>
+<path d="M56 14 L56 36 L68 36 M40 14 L40 36 M29 25 L51 25" fill="none" stroke="#000"/>
+</svg>`;
+
+// ---------------------------------------------------------------- raster (fill) processing
+function lumAt(d, i) { return 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]; }
+// burn mask from RGBA pixels: dark & opaque = burn; optional Floyd–Steinberg
+function burnMask(d, W, H, thr, dither, invert) {
+  const n = W * H, out = new Uint8Array(n), lum = new Float32Array(n);
+  for (let i = 0; i < n; i++) lum[i] = d[i * 4 + 3] > 127 ? lumAt(d, i * 4) : -1;
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const i = y * W + x, v = lum[i];
+    if (v < 0) continue;
+    const val = invert ? 255 - v : v;
+    if (!dither) { out[i] = val < thr ? 1 : 0; continue; }
+    const on = val < 128, err = val - (on ? 0 : 255); out[i] = on ? 1 : 0;
+    const spread = (dx, dy, f) => { const j = (y + dy) * W + x + dx; if (x + dx >= 0 && x + dx < W && y + dy < H && lum[j] >= 0) lum[j] = invert ? lum[j] - err * f : lum[j] + err * f; };
+    spread(1, 0, 7 / 16); spread(-1, 1, 3 / 16); spread(0, 1, 5 / 16); spread(1, 1, 1 / 16);
+  }
+  return out;
+}
+const previewCache = new Map();
+function previewOf(o) {
+  const src = ed.images[o.src]; if (!src) return null;
+  const thr = o.kind === 'text' ? 128 : o.threshold, dith = o.kind === 'image' && o.dither, inv = o.kind === 'image' && o.invert;
+  const key = `${o.src}|${thr}|${dith}|${inv}|${getComputedStyle(document.documentElement).getPropertyValue('--ink')}`;
+  if (previewCache.has(key)) return previewCache.get(key);
+  const s = Math.min(1, 700 / Math.max(src.canvas.width, src.canvas.height));
+  const c = document.createElement('canvas'); c.width = Math.max(1, Math.round(src.canvas.width * s)); c.height = Math.max(1, Math.round(src.canvas.height * s));
+  const x = c.getContext('2d', {willReadFrequently: true}); x.drawImage(src.canvas, 0, 0, c.width, c.height);
+  const img = x.getImageData(0, 0, c.width, c.height), m = burnMask(img.data, c.width, c.height, thr, dith, inv);
+  const ink = getComputedStyle(document.documentElement).getPropertyValue('--ink').trim() || '#000';
+  const tmp = document.createElement('canvas').getContext('2d'); tmp.fillStyle = ink; tmp.fillRect(0, 0, 1, 1);
+  const [r, g, b] = tmp.getImageData(0, 0, 1, 1).data;
+  for (let i = 0; i < m.length; i++) { const k = i * 4; img.data[k] = r; img.data[k + 1] = g; img.data[k + 2] = b; img.data[k + 3] = m[i] ? 230 : 0; }
+  x.putImageData(img, 0, 0);
+  if (previewCache.size > 60) previewCache.clear();
+  previewCache.set(key, c); return c;
+}
+// rasterise one object onto the plate grid (pixel = line interval)
+function rasterize(o) {
+  const p = clamp(+o.interval || 0.1, 0.05, 1), b = worldBBox(o);
+  const W = Math.ceil((b.x1 - b.x0) / p) + 1, H = Math.ceil((b.y1 - b.y0) / p) + 1;
+  if (W * H > 16e6) throw new Error(`${o.name}: too large for fill at ${p} mm – raise the line interval`);
+  const c = document.createElement('canvas'); c.width = W; c.height = H;
+  const x = c.getContext('2d', {willReadFrequently: true});
+  x.setTransform(1 / p, 0, 0, 1 / p, -b.x0 / p, -b.y0 / p);
+  if (isRaster(o)) {
+    const g = geom(o), src = ed.images[o.src];
+    if (!src) throw new Error(o.name + ': image data missing');
+    x.translate(g.cx, g.cy); x.rotate(o.rot * Math.PI / 180); x.scale(o.flipH ? -1 : 1, o.flipV ? -1 : 1);
+    x.imageSmoothingQuality = 'high'; x.drawImage(src.canvas, -g.cw / 2, -g.ch / 2, g.cw, g.ch);
+  } else {
+    const g = geom(o); x.beginPath();
+    for (const poly of localPolys(o)) poly.forEach(([u, v], i) => { const [wx, wy] = toWorld(o, g, u, v); i ? x.lineTo(wx, wy) : x.moveTo(wx, wy); });
+    x.fillStyle = '#000'; x.fill('evenodd');
+  }
+  const d = x.getImageData(0, 0, W, H).data;
+  const thr = o.kind === 'image' ? o.threshold : 128;
+  const mask = burnMask(d, W, H, thr, o.kind === 'image' && o.dither, o.kind === 'image' && o.invert);
+  return {mask, W, H, x0: b.x0, y0: b.y0, p};
+}
+
+// ---------------------------------------------------------------- G-code generation
+function objLines(o, S, F, MY) {
+  const L = []; let fSet = false;
+  const G1 = (s) => { L.push(s + (fSet ? '' : ` F${F}`)); fSet = true; };
+  if (o.mode === 'fill') {
+    const R = rasterize(o); let dir = 1;
+    const X = i => f3(R.x0 + i * R.p);
+    for (let r = 0; r < R.H; r++) {
+      const runs = [], row = r * R.W; let i = 0;
+      while (i < R.W) { if (R.mask[row + i]) { let j = i; while (j < R.W && R.mask[row + j]) j++; runs.push([i, j]); i = j; } else i++; }
+      if (!runs.length) continue;
+      const seq = dir > 0 ? runs : runs.reverse().map(([a, b]) => [b, a]);
+      L.push(`G0 X${X(seq[0][0])} Y${f3(MY(R.y0 + (r + 0.5) * R.p))} S0`);
+      seq.forEach(([a, b], k) => { if (k) G1(`G1 X${X(a)} S0`); G1(`G1 X${X(b)} S${S}`); });
+      dir = -dir;
+    }
+  } else {
+    const g = geom(o);
+    for (const poly of localPolys(o) || []) {
+      const pts = poly.map(([u, v]) => toWorld(o, g, u, v));
+      L.push(`G0 X${f3(pts[0][0])} Y${f3(MY(pts[0][1]))} S0`);
+      pts.slice(1).forEach((q, i) => G1(`G1 X${f3(q[0])} Y${f3(MY(q[1]))}` + (i === 0 ? ` S${S}` : '')));
+    }
+  }
+  return L;
+}
+function genJob() {
+  if (!ed.objs.length) return [];
+  const fl = $('#origin').value === 'fl', MY = y => fl ? BED.h - y : y;
+  const smax = +app.settings.$30 || 1000, air = $('#air').checked;
+  const L = ['; ToocaaLaser job', `; origin ${fl ? 'front-left' : 'rear-left'}, $30=${smax}`, 'G21 G90', 'M4 S0'];
   if (air) L.push('M8');
-  for (let k = 0; k < passes; k++) for (const p of polys) {
-    L.push(`G0 X${f3(p[0][0])} Y${f3(p[0][1])} S0`);
-    p.slice(1).forEach((q, i) => L.push(`G1 X${f3(q[0])} Y${f3(q[1])}` + (i === 0 ? ` S${S} F${F}` : '')));
+  const order = [...ed.objs.filter(o => o.mode === 'fill'), ...ed.objs.filter(o => o.mode !== 'fill')];
+  for (const o of order) {
+    const pw = clamp(+o.power || 0, 0, 100), S = Math.round(pw / 100 * smax), F = clamp(Math.round(+o.speed || 1000), 60, 36000);
+    const passes = clamp(Math.round(+o.passes || 1), 1, 20);
+    L.push(`; ${o.name}: ${o.mode} ${pw}% ${F} mm/min x${passes}`);
+    const body = objLines(o, S, F, MY);
+    for (let k = 0; k < passes; k++) for (const l of body) L.push(l);
   }
   L.push('M5 S0'); if (air) L.push('M9');
-  app.job.lines = L;
+  return L;
 }
 function analyse() {
   let x = 0, y = 0, abs = true, mot = 0, sp = 0, s = 0, f = 1000, len = 0, time = 0;
   const segs = [], rapid = +app.settings.$110 || 12000;
-  let bx0 = Infinity, by0 = Infinity, bx1 = -Infinity, by1 = -Infinity;
+  let bx0 = Infinity, by0 = Infinity, bx1 = -Infinity, by1 = -Infinity, inBed = true;
   for (const raw of app.job.lines) {
     const w = words(raw); if (!w.length) continue;
     let nx = x, ny = y, mv = false;
@@ -776,61 +1195,282 @@ function analyse() {
     if (mv) {
       const on = !!(sp && s > 0 && mot !== 0), d = Math.hypot(nx - x, ny - y);
       segs.push([x, y, nx, ny, on]); time += d / (mot === 0 ? rapid : f) * 60;
+      if (nx < -1e-6 || nx > BED.w + 1e-6 || ny < -1e-6 || ny > BED.h + 1e-6) inBed = false;
       if (on) { len += d; bx0 = Math.min(bx0, x, nx); by0 = Math.min(by0, y, ny); bx1 = Math.max(bx1, x, nx); by1 = Math.max(by1, y, ny); }
       x = nx; y = ny;
     }
   }
-  const all = segs.flatMap(s => [[s[0], s[1]], [s[2], s[3]]]);
-  app.job.segs = segs; app.job.len = len; app.job.time = time;
-  app.job.bounds = isFinite(bx0) ? {x0: bx0, y0: by0, x1: bx1, y1: by1} : null;
-  app.job.inBed = all.every(([a, b]) => a >= -1e-6 && a <= BED.w + 1e-6 && b >= -1e-6 && b <= BED.h + 1e-6);
+  Object.assign(app.job, {segs, len, time, inBed, bounds: isFinite(bx0) ? {x0: bx0, y0: by0, x1: bx1, y1: by1} : null});
 }
-function regenerate() { if (app.job.kind === 'svg') placeAndGenerate(); analyse(); updateJobInfo(); draw(); refreshButtons(); }
+function regenerate() {
+  clearTimeout(regenTimer);
+  try { app.job.lines = app.raw ? app.raw.lines : genJob(); }
+  catch (e) { app.job.lines = []; log(errText(e), 'bad'); }
+  analyse(); updateJobInfo(); refreshButtons(); draw();
+}
 function updateJobInfo() {
   const j = app.job, el = $('#jobStats');
-  if (!j.lines.length) { el.textContent = ''; $('#jobNote').textContent = ''; return; }
-  const b = j.bounds, mm = v => v.toFixed(1);
-  const sec = Math.round(j.time), tm = sec >= 60 ? `${Math.floor(sec / 60)} min ${sec % 60} s` : `${sec} s`;
-  el.innerHTML = '';
-  for (const [k, v] of [[t('lines'), j.lines.length], [t('burn'), mm(j.len) + ' mm'], [t('est'), tm], [t('size'), b ? `${mm(b.x1 - b.x0)} × ${mm(b.y1 - b.y0)} mm` : '—']]) {
-    const s = document.createElement('span'); s.append(k + ' '); const bb = document.createElement('b'); bb.textContent = v; s.append(bb); el.append(s);
-  }
+  el.textContent = '';
+  if (!j.lines.length) { $('#jobNote').textContent = ''; return; }
+  const b = j.bounds, mm = v => v.toFixed(1), sec = Math.round(j.time);
+  const tm = sec >= 3600 ? `${Math.floor(sec / 3600)} h ${Math.floor(sec % 3600 / 60)} min` : sec >= 60 ? `${Math.floor(sec / 60)} min ${sec % 60} s` : `${sec} s`;
+  const items = [[t('lines'), j.lines.length], [t('burn'), mm(j.len) + ' mm'], [t('est'), tm], [t('size'), b ? `${mm(b.x1 - b.x0)} × ${mm(b.y1 - b.y0)} mm` : '—']];
+  if (!app.raw) items.unshift([t('objects'), ed.objs.length]);
+  for (const [k, v] of items) { const s = document.createElement('span'); s.append(k + ' '); const bb = document.createElement('b'); bb.textContent = v; s.append(bb); el.append(s); }
   const notes = [];
   if (!j.inBed) notes.push(t('out_of_bed'));
   if (app.settings.$32 && app.settings.$32 !== '1') notes.push(t('laser_mode'));
   $('#jobNote').textContent = notes.join(' '); $('#jobNote').className = notes.length ? 'note warn' : 'note';
 }
-$('#svgOpts').addEventListener('input', regenerate);
-$('#air').addEventListener('change', regenerate);
 
-async function loadFile(file) {
-  const text = await file.text();
-  app.burns = [];
-  if (/\.svg$/i.test(file.name) || /^\s*(<\?xml[^>]*>\s*)?(<!--[\s\S]*?-->\s*)*<svg/i.test(text)) {
-    try { app.job.polys = svgToPolys(text); } catch (e) { log('SVG: ' + errText(e), 'bad'); return; }
-    if (!app.job.polys.length) { log('SVG has no drawable paths (text must be converted to paths)', 'bad'); return; }
-    app.job.kind = 'svg'; $('#svgOpts').classList.remove('hidden');
-  } else {
-    app.job.kind = 'gcode'; app.job.polys = null; app.job.lines = text.split(/\r?\n/);
-    $('#svgOpts').classList.add('hidden');
-  }
-  app.job.name = file.name; $('#fileName').textContent = file.name;
-  regenerate();
-  log(`loaded ${file.name}: ${app.job.lines.length} lines` + (firesLaser(app.job.lines) ? ' (uses the laser)' : ''), 'sys');
+// ---------------------------------------------------------------- material presets
+// Only the kraft-paper values are published by TOOCAA (wiki, 20 W module);
+// everything else is the user's own, stored in this browser.
+const BUILTIN_PRESETS = [
+  {name: 'Kraft paper · fill · 20 W (TOOCAA wiki)', mode: 'fill', speed: 16000, power: 50},
+  {name: 'Kraft paper · line · 20 W (TOOCAA wiki)', mode: 'line', speed: 12000, power: 70},
+];
+function userPresets() { try { return JSON.parse(localStorage.getItem('tl-presets') || '[]'); } catch { return []; } }
+function fillPresets() {
+  const sel = $('#presetSel'); sel.textContent = '';
+  const add = (v, txt) => { const o = document.createElement('option'); o.value = v; o.textContent = txt; sel.append(o); };
+  add('', t('preset_pick'));
+  BUILTIN_PRESETS.forEach((p, i) => add('b' + i, p.name));
+  userPresets().forEach((p, i) => add('u' + i, '★ ' + p.name));
 }
-const DEMO = `<svg xmlns="http://www.w3.org/2000/svg" width="80mm" height="50mm" viewBox="0 0 80 50">
-<rect x="1" y="1" width="78" height="48" rx="6" fill="none" stroke="#000"/>
-<path d="M14 36 L14 14 L26 14 M14 25 L23 25" fill="none" stroke="#000"/>
-<circle cx="40" cy="25" r="11" fill="none" stroke="#000"/>
-<path d="M56 14 L56 36 L68 36 M40 14 L40 36 M29 25 L51 25" fill="none" stroke="#000"/>
-</svg>`;
+function applyPreset(v) {
+  const o = ed.sel; if (!o || !v) return;
+  const p = v[0] === 'b' ? BUILTIN_PRESETS[+v.slice(1)] : userPresets()[+v.slice(1)]; if (!p) return;
+  pushUndo();
+  for (const k of ['mode', 'speed', 'power', 'passes', 'interval']) if (p[k] !== undefined) o[k] = p[k];
+  if (isRaster(o)) o.mode = 'fill';
+  afterEdit();
+}
+function savePreset() {
+  const o = ed.sel; if (!o) return;
+  const name = prompt(t('preset_name'), `${o.mode} ${o.power}% ${o.speed}`); if (!name) return;
+  const list = userPresets(); list.push({name, mode: o.mode, speed: o.speed, power: o.power, passes: o.passes, interval: o.interval});
+  try { localStorage.setItem('tl-presets', JSON.stringify(list)); } catch (e) { log('cannot save preset: ' + errText(e), 'bad'); }
+  fillPresets();
+}
+
+// ---------------------------------------------------------------- properties panel
+let propSnap = null;
+function syncProps() {
+  const o = ed.sel;
+  $('#rawBox').classList.toggle('hidden', !app.raw);
+  $('#noSel').classList.toggle('hidden', !!o || !!app.raw);
+  $('#props').classList.toggle('hidden', !o || !!app.raw);
+  if (!o || app.raw) return;
+  const vals = {name: o.name, x: r2(o.x), y: r2(o.y), W: r2(o.w * o.sx), H: r2(o.h * o.sy), rot: r2(o.rot), text: o.text, font: o.font,
+    bold: o.bold, italic: o.italic, mode: o.mode, power: o.power, speed: o.speed, passes: o.passes, interval: o.interval,
+    threshold: o.threshold, dither: o.dither, invert: o.invert};
+  $$('[data-prop]').forEach(el => {
+    if (el === document.activeElement && el.type !== 'checkbox' && el.type !== 'range') return;
+    const v = vals[el.dataset.prop];
+    if (el.type === 'checkbox') el.checked = !!v; else el.value = v ?? '';
+  });
+  $('#textBox').classList.toggle('hidden', o.kind !== 'text');
+  $('#imgBox').classList.toggle('hidden', o.kind !== 'image');
+  $('[data-prop="mode"] option[value="line"]').disabled = isRaster(o);
+  $$('.fillOnly').forEach(e => e.classList.toggle('hidden', o.mode !== 'fill'));
+  $('#thrVal').textContent = o.threshold;
+}
+function applyProp(el) {
+  const o = ed.sel; if (!o) return;
+  const k = el.dataset.prop, num = el.type === 'number' || el.type === 'range';
+  const v = el.type === 'checkbox' ? el.checked : num ? parseFloat(el.value) : el.value;
+  if (num && !isFinite(v)) return;
+  const lock = $('#lockAspect').checked;
+  if (k === 'W' || k === 'H') {
+    const cur = k === 'W' ? o.w * o.sx : o.h * o.sy, f = Math.max(0.5, v) / cur;
+    if (lock) { o.sx *= f; o.sy *= f; } else if (k === 'W') o.sx *= f; else o.sy *= f;
+  } else if (['text', 'font', 'bold', 'italic'].includes(k)) {
+    o[k] = v; if (k === 'text') o.name = (v.split('\n')[0] || 'Text').slice(0, 16);
+    setText(o, true);
+  } else if (k === 'mode') o.mode = isRaster(o) ? 'fill' : v;
+  else o[k] = v;
+  syncProps(); renderObjList(); draw();
+  clearTimeout(regenTimer); regenTimer = setTimeout(regenerate, 300);
+  clearTimeout(saveTimer); saveTimer = setTimeout(autosave, 800);
+}
+function flip(axis) { const o = ed.sel; if (!o) return; pushUndo(); o[axis] = !o[axis]; afterEdit(); }
+
+// ---------------------------------------------------------------- projects
+function projectData() {
+  const images = {};
+  for (const o of ed.objs) if (o.kind === 'image' && ed.images[o.src]) images[o.src] = ed.images[o.src].url || ed.images[o.src].canvas.toDataURL('image/png');
+  return {app: 'ToocaaLaser', version: 1, origin: $('#origin').value, air: $('#air').checked, objs: ed.objs, images};
+}
+function loadImg(url) { return new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error('bad image')); i.src = url; }); }
+async function loadProject(d) {
+  if (!d || d.app !== 'ToocaaLaser' || !Array.isArray(d.objs)) throw new Error('not a ToocaaLaser project');
+  for (const [id, url] of Object.entries(d.images || {})) {
+    const img = await loadImg(url), c = document.createElement('canvas'); c.width = img.width; c.height = img.height;
+    c.getContext('2d').drawImage(img, 0, 0); ed.images[id] = {canvas: c, url};
+  }
+  for (const o of d.objs) if (o.kind === 'text') { ed.images[o.src] = {canvas: renderTextCanvas(o)}; }
+  ed.objs = d.objs; ed.sel = null; ed.undo = []; ed.redo = [];
+  ed.nid = Math.max(0, ...ed.objs.map(o => o.id)) + 1;
+  ed.srcSeq = Math.max(0, ...Object.keys(ed.images).map(k => +k.slice(1) || 0)) + 1;
+  if (d.origin) $('#origin').value = d.origin;
+  $('#air').checked = !!d.air;
+  app.raw = null; afterEdit();
+}
+function autosave() { try { localStorage.setItem('tl-project', JSON.stringify(projectData())); } catch {} }
+function saveProjectFile() {
+  const blob = new Blob([JSON.stringify(projectData())], {type: 'application/json'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'toocaalaser-project.json'; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+// ---------------------------------------------------------------- drawing
+function draw() {
+  if (draw.q) return; draw.q = true;
+  requestAnimationFrame(() => { draw.q = false; drawNow(); });
+}
+function drawNow() {
+  const c = $('#bed'), dpr = window.devicePixelRatio || 1, W = c.clientWidth || 600, H = W * BED.h / BED.w;
+  if (c.width !== Math.round(W * dpr) || c.height !== Math.round(H * dpr)) { c.style.height = H + 'px'; c.width = Math.round(W * dpr); c.height = Math.round(H * dpr); }
+  const x = c.getContext('2d'), css = getComputedStyle(document.documentElement), col = n => css.getPropertyValue(n).trim();
+  const k = W / BED.w, fl = $('#origin').value === 'fl';
+  const S = (X, Y) => [X * k, Y * k];                       // plate mm -> px
+  const M = (X, Y) => S(X, fl ? BED.h - Y : Y);             // machine mm -> px
+  x.setTransform(dpr, 0, 0, dpr, 0, 0);
+  x.fillStyle = col('--bed'); x.fillRect(0, 0, W, H);
+  for (let v = 0; v <= BED.w; v += 10) { x.strokeStyle = col(v % 50 ? '--grid' : '--grid2'); x.lineWidth = 1; x.beginPath(); x.moveTo(v * k + .5, 0); x.lineTo(v * k + .5, H); x.stroke(); }
+  for (let v = 0; v <= BED.h; v += 10) { x.strokeStyle = col(v % 50 ? '--grid' : '--grid2'); x.beginPath(); x.moveTo(0, v * k + .5); x.lineTo(W, v * k + .5); x.stroke(); }
+  x.fillStyle = col('--mut'); x.font = '11px system-ui'; const o0 = M(0, 0); x.fillText('0,0', o0[0] + 4, fl ? o0[1] - 4 : o0[1] + 12);
+  // objects
+  const ink = col('--ink'), bad = col('--bad');
+  x.globalAlpha = app.raw ? 0.25 : 1;
+  for (const o of ed.objs) {
+    const g = geom(o);
+    if (isRaster(o)) {
+      const pv = previewOf(o);
+      if (pv) { x.save(); x.translate(g.cx * k, g.cy * k); x.rotate(o.rot * Math.PI / 180); x.scale(o.flipH ? -1 : 1, o.flipV ? -1 : 1); x.drawImage(pv, -g.cw / 2 * k, -g.ch / 2 * k, g.cw * k, g.ch * k); x.restore(); }
+    } else {
+      x.beginPath();
+      for (const poly of localPolys(o)) poly.forEach(([u, v], i) => { const [wx, wy] = toWorld(o, g, u, v); i ? x.lineTo(wx * k, wy * k) : x.moveTo(wx * k, wy * k); });
+      if (o.mode === 'fill') { x.fillStyle = ink; x.globalAlpha *= 0.75; x.fill('evenodd'); x.globalAlpha = app.raw ? 0.25 : 1; }
+      x.strokeStyle = ink; x.lineWidth = 1.3; x.stroke();
+    }
+    const b = worldBBox(o);
+    if (b.x0 < -1e-6 || b.y0 < -1e-6 || b.x1 > BED.w + 1e-6 || b.y1 > BED.h + 1e-6) {
+      x.save(); x.setLineDash([5, 4]); x.strokeStyle = bad; x.lineWidth = 1.5; x.beginPath();
+      corners(o).forEach(([wx, wy], i) => i ? x.lineTo(wx * k, wy * k) : x.moveTo(wx * k, wy * k)); x.closePath(); x.stroke(); x.restore();
+    }
+  }
+  x.globalAlpha = 1;
+  // toolpaths (machine coordinates)
+  if ($('#showPaths').checked || app.raw) {
+    const segs = app.job.segs;
+    x.lineWidth = 1; x.setLineDash([3, 3]); x.strokeStyle = col('--travel'); x.beginPath();
+    for (const s of segs) if (!s[4]) { const a = M(s[0], s[1]), b = M(s[2], s[3]); x.moveTo(a[0], a[1]); x.lineTo(b[0], b[1]); }
+    x.stroke(); x.setLineDash([]);
+    x.strokeStyle = col('--fg'); x.globalAlpha = .6; x.beginPath();
+    for (const s of segs) if (s[4]) { const a = M(s[0], s[1]), b = M(s[2], s[3]); x.moveTo(a[0], a[1]); x.lineTo(b[0], b[1]); }
+    x.stroke(); x.globalAlpha = 1;
+  }
+  // live burn trace + head
+  x.strokeStyle = col('--burn'); x.lineWidth = 2; x.beginPath();
+  for (const s of app.burns) { const a = M(s[0], s[1]), b = M(s[2], s[3]); x.moveTo(a[0], a[1]); x.lineTo(b[0], b[1]); }
+  x.stroke();
+  if (app.head) {
+    const [hx, hy] = M(app.head[0], app.head[1]);
+    x.strokeStyle = col('--head'); x.lineWidth = 1.5; x.beginPath();
+    x.arc(hx, hy, 6, 0, Math.PI * 2); x.moveTo(hx - 10, hy); x.lineTo(hx + 10, hy); x.moveTo(hx, hy - 10); x.lineTo(hx, hy + 10); x.stroke();
+  }
+  // selection
+  const o = ed.sel;
+  if (o && !app.raw) {
+    const sel = col('--sel'), h = handles(o, k);
+    x.save(); x.strokeStyle = sel; x.lineWidth = 1.2; x.setLineDash([4, 3]); x.beginPath();
+    corners(o).forEach(([wx, wy], i) => i ? x.lineTo(wx * k, wy * k) : x.moveTo(wx * k, wy * k)); x.closePath(); x.stroke();
+    x.setLineDash([]); x.beginPath(); x.moveTo(h.top[0] * k, h.top[1] * k); x.lineTo(h.rot[0] * k, h.rot[1] * k); x.stroke();
+    x.fillStyle = col('--panel'); x.lineWidth = 2;
+    x.beginPath(); x.arc(h.rot[0] * k, h.rot[1] * k, 6, 0, Math.PI * 2); x.fill(); x.stroke();
+    x.beginPath(); x.rect(h.scale[0] * k - 6, h.scale[1] * k - 6, 12, 12); x.fill(); x.stroke();
+    x.restore();
+  }
+}
+
+// ---------------------------------------------------------------- pointer + keyboard editing
+let drag = null;
+function evMM(e) { const r = $('#bed').getBoundingClientRect(), k = r.width / BED.w; return {x: (e.clientX - r.left) / k, y: (e.clientY - r.top) / k, k}; }
+function handleAt(p) {
+  const o = ed.sel; if (!o || app.raw) return null;
+  const h = handles(o, p.k), rad = 13 / p.k, d = q => Math.hypot(p.x - q[0], p.y - q[1]);
+  if (d(h.scale) < rad) return 'scale';
+  if (d(h.rot) < rad) return 'rotate';
+  return null;
+}
+function onPointerDown(e) {
+  if (app.raw) return;
+  const p = evMM(e), h = handleAt(p);
+  if (h) drag = {type: h, snap: snapshot(), o: ed.sel, o0: {...ed.sel}, g0: geom(ed.sel), start: p};
+  else {
+    const o = hitObj(p);
+    if (o !== ed.sel) select(o);
+    if (o) drag = {type: 'move', snap: snapshot(), o, o0: {x: o.x, y: o.y}, start: p};
+  }
+  if (drag) { $('#bed').setPointerCapture(e.pointerId); e.preventDefault(); }
+}
+function onPointerMove(e) {
+  const p = evMM(e), cv = $('#bed');
+  if (!drag) { const h = handleAt(p); cv.style.cursor = h === 'scale' ? 'nwse-resize' : h === 'rotate' ? 'grab' : hitObj(p) ? 'move' : 'default'; return; }
+  const o = drag.o;
+  if (drag.type === 'move') {
+    o.x = r2(drag.o0.x + p.x - drag.start.x); o.y = r2(drag.o0.y + p.y - drag.start.y);
+  } else if (drag.type === 'scale') {
+    const g = drag.g0, Ax = g.cx - g.cw / 2 * g.c + g.ch / 2 * g.s, Ay = g.cy - g.cw / 2 * g.s - g.ch / 2 * g.c;
+    const vx = p.x - Ax, vy = p.y - Ay, lx = vx * g.c + vy * g.s, ly = -vx * g.s + vy * g.c;
+    let ncw, nch;
+    if ($('#lockAspect').checked !== e.shiftKey) { const f = Math.max(lx / g.cw, ly / g.ch, 0.5 / Math.min(g.cw, g.ch)); ncw = g.cw * f; nch = g.ch * f; }
+    else { ncw = Math.max(0.5, lx); nch = Math.max(0.5, ly); }
+    o.sx = ncw / o.w; o.sy = nch / o.h;
+    const cx = Ax + ncw / 2 * g.c - nch / 2 * g.s, cy = Ay + ncw / 2 * g.s + nch / 2 * g.c;
+    o.x = cx - ncw / 2; o.y = cy - nch / 2;
+  } else if (drag.type === 'rotate') {
+    const g = drag.g0, step = e.shiftKey ? 15 : 1;
+    let a = Math.atan2(p.y - g.cy, p.x - g.cx) * 180 / Math.PI + 90;
+    a = Math.round(a / step) * step; if (a > 180) a -= 360; if (a <= -180) a += 360;
+    o.rot = a;
+  }
+  syncProps(); draw();
+}
+function onPointerUp() {
+  if (!drag) return;
+  if (snapshot() !== drag.snap) { pushUndo(drag.snap); afterEdit(); }
+  drag = null;
+}
+function onKey(e) {
+  if (e.key === 'Escape' && app.grbl) { e.preventDefault(); stopNow(); return; }
+  const tag = (e.target.tagName || '').toLowerCase();
+  if (['input', 'textarea', 'select'].includes(tag) || app.raw) return;
+  const mod = e.ctrlKey || e.metaKey, key = e.key.toLowerCase();
+  if (mod && key === 'z' && !e.shiftKey) { e.preventDefault(); undo(); return; }
+  if (mod && (key === 'y' || (key === 'z' && e.shiftKey))) { e.preventDefault(); redo(); return; }
+  if (mod && key === 'v') { e.preventDefault(); pasteClip(); return; }
+  if (!ed.sel) return;
+  if (mod && key === 'c') { e.preventDefault(); copySel(); }
+  else if (mod && key === 'd') { e.preventDefault(); duplicateSel(); }
+  else if (key === 'delete' || key === 'backspace') { e.preventDefault(); deleteSel(); }
+  else if (e.key.startsWith('Arrow')) {
+    e.preventDefault(); const d = e.shiftKey ? 10 : 1; pushUndo();
+    if (e.key === 'ArrowLeft') ed.sel.x -= d; if (e.key === 'ArrowRight') ed.sel.x += d;
+    if (e.key === 'ArrowUp') ed.sel.y -= d; if (e.key === 'ArrowDown') ed.sel.y += d;
+    afterEdit();
+  }
+}
 
 // ---------------------------------------------------------------- run / check / frame
 async function runJob(check) {
   const g = app.grbl; if (!g) return;
+  regenerate();
   const prog = app.job.lines.map(cleanLine).filter(Boolean);
   if (!prog.length) return log(t('no_job'), 'bad');
-  if (prog.some(l => /^[$\[]/.test(l))) return log('job contains $/[ESP] system lines – refused', 'bad');
+  if (prog.some(l => /^[$\[]/.test(l) || /[?!~]/.test(l))) return log('job contains $ / [ESP] / real-time characters – refused', 'bad');
   const fires = firesLaser(prog);
   if (!check) {
     if (!app.perms.motion) return log(t('need_motion'), 'bad');
@@ -843,30 +1483,28 @@ async function runJob(check) {
   if (st.state !== 'Idle') return log(`machine is ${st.state} – needs Idle`, 'bad');
   app.running = true; app.abort = false; app.paused = false; refreshButtons();
   if (!check) app.burns = [];
-  g.quiet = true; let sent = 0; const t0 = performance.now();
+  g.quiet = true; let acked = 0; const t0 = performance.now();
+  const guard = () => {
+    if (app.abort) throw new Error('aborted');
+    if (!app.grbl) throw new Error('disconnected');
+    const s = g.last;
+    if (s && (['Alarm', 'Door', 'Sleep'].includes(s.state) || (s.state === 'Hold' && !app.paused))) throw new Error('stopped: machine entered ' + s.state);
+  };
   try {
     if (check) {
       await g.cmd('$C'); st = await g.status();
       if (st.state !== 'Check') { await g.cmd('$C').catch(() => {}); throw new Error('controller did not enter check mode'); }
     }
-    for (const l of prog) {
-      if (app.abort) throw new Error('aborted');
-      const s = g.last;
-      if (s && (['Alarm', 'Door', 'Sleep'].includes(s.state) || (s.state === 'Hold' && !app.paused))) throw new Error('stopped: machine entered ' + s.state);
-      while (app.paused && !app.abort) await sleep(100);
-      await g.cmd(l, 120000); sent++;
-      if (sent % 10 === 0 || sent === prog.length) $('#progress').style.width = (100 * sent / prog.length) + '%';
-    }
+    await g.streamLines(prog, n => { acked = n; if (n % 25 === 0 || n === prog.length) $('#progress').style.width = (100 * n / prog.length) + '%'; }, guard, () => app.paused);
     if (!check) for (;;) {
-      if (app.abort) throw new Error('aborted');
+      guard();
       const s = await g.status();
       if (s.state === 'Idle') break;
-      if (['Alarm', 'Door'].includes(s.state)) throw new Error('machine ' + s.state);
       await sleep(250);
     }
-    log(`${check ? 'check' : 'job'} OK – ${sent} lines in ${((performance.now() - t0) / 1000).toFixed(1)} s`, 'ok');
+    log(`${check ? 'check' : 'job'} OK – ${acked} lines in ${((performance.now() - t0) / 1000).toFixed(1)} s`, 'ok');
   } catch (e) {
-    log(`${check ? 'check' : 'job'} stopped at line ${sent + 1}: ${errText(e)}`, 'bad');
+    log(`${check ? 'check' : 'job'} stopped near line ${acked + 1}: ${errText(e)}`, 'bad');
     if (!check && app.grbl && !app.abort) { g.rt('!'); await sleep(60); g.rt('\x18'); }
   } finally {
     g.quiet = false;
@@ -878,45 +1516,12 @@ async function runJob(check) {
   }
 }
 async function frame() {
+  regenerate();
   const b = app.job.bounds; if (!b || !app.grbl) return;
   const f = +$('#jogFeed').value || 3000;
   for (const [x, y] of [[b.x0, b.y0], [b.x1, b.y0], [b.x1, b.y1], [b.x0, b.y1], [b.x0, b.y0]])
     if (!(await gated(`$J=G90 G21 X${f3(x)} Y${f3(y)} F${f}`))) return;
 }
-
-// ---------------------------------------------------------------- drawing
-function draw() {
-  const c = $('#bed'), dpr = window.devicePixelRatio || 1, W = c.clientWidth || 600, H = W * BED.h / BED.w;
-  if (c.width !== Math.round(W * dpr) || c.height !== Math.round(H * dpr)) { c.style.height = H + 'px'; c.width = Math.round(W * dpr); c.height = Math.round(H * dpr); }
-  const x = c.getContext('2d'), css = getComputedStyle(document.documentElement), col = n => css.getPropertyValue(n).trim();
-  x.setTransform(dpr, 0, 0, dpr, 0, 0);
-  const k = W / BED.w, fl = $('#origin').value === 'fl', P = (a, b) => [a * k, fl ? (BED.h - b) * k : b * k];
-  x.fillStyle = col('--bed'); x.fillRect(0, 0, W, H);
-  for (let v = 0; v <= BED.w; v += 10) { x.strokeStyle = col(v % 50 ? '--grid' : '--grid2'); x.lineWidth = 1; x.beginPath(); x.moveTo(v * k + .5, 0); x.lineTo(v * k + .5, H); x.stroke(); }
-  for (let v = 0; v <= BED.h; v += 10) { x.strokeStyle = col(v % 50 ? '--grid' : '--grid2'); const yy = P(0, v)[1]; x.beginPath(); x.moveTo(0, yy + .5); x.lineTo(W, yy + .5); x.stroke(); }
-  x.fillStyle = col('--mut'); x.font = '11px system-ui'; const o = P(0, 0); x.fillText('0,0', o[0] + 4, fl ? o[1] - 4 : o[1] + 12);
-  const segs = app.job.segs;
-  x.lineWidth = 1; x.setLineDash([3, 3]); x.strokeStyle = col('--travel'); x.beginPath();
-  for (const s of segs) if (!s[4]) { const a = P(s[0], s[1]), b = P(s[2], s[3]); x.moveTo(a[0], a[1]); x.lineTo(b[0], b[1]); }
-  x.stroke(); x.setLineDash([]);
-  x.strokeStyle = col('--fg'); x.globalAlpha = .55; x.lineWidth = 1.2; x.beginPath();
-  for (const s of segs) if (s[4]) { const a = P(s[0], s[1]), b = P(s[2], s[3]); x.moveTo(a[0], a[1]); x.lineTo(b[0], b[1]); }
-  x.stroke(); x.globalAlpha = 1;
-  x.strokeStyle = col('--burn'); x.lineWidth = 2; x.beginPath();
-  for (const s of app.burns) { const a = P(s[0], s[1]), b = P(s[2], s[3]); x.moveTo(a[0], a[1]); x.lineTo(b[0], b[1]); }
-  x.stroke();
-  if (app.head) {
-    const [hx, hy] = P(app.head[0], app.head[1]);
-    x.strokeStyle = col('--head'); x.lineWidth = 1.5; x.beginPath();
-    x.arc(hx, hy, 6, 0, Math.PI * 2); x.moveTo(hx - 10, hy); x.lineTo(hx + 10, hy); x.moveTo(hx, hy - 10); x.lineTo(hx, hy + 10); x.stroke();
-  }
-}
-let drawQueued = false;
-const _draw = draw;
-draw = function () { if (drawQueued) return; drawQueued = true; requestAnimationFrame(() => { drawQueued = false; _draw(); }); };
-window.addEventListener('resize', draw);
-matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', draw);
-
 // ---------------------------------------------------------------- .lbdev audit (mirror lbdev_audit.py)
 const INTERESTING = /(type|driver|baud|width|height|size|origin|home|power|speed|rate|macro|button|gcode|start|end|cmd|command|focus|air|cross|laser|pointer|frame|port|ip|address|host|url|version|name|mirror|label|content)/i;
 const GCODE_LINE = /^\s*(\$[A-Za-z0-9#/=]|\[ESP\d+\]|[GM]\d+(\.\d+)?\b|[SFXYZ][-+]?\d|T\d+\b|%|\?|!|~)/m;
@@ -964,12 +1569,13 @@ function auditLbdev(text) {
   return out;
 }
 
+
 // ---------------------------------------------------------------- wiring
 $$('[data-lang]').forEach(b => b.addEventListener('click', () => { lang = b.dataset.lang; try { localStorage.setItem('tl-lang', lang); } catch {} applyLang(); }));
 $('#linkType').addEventListener('change', updateConnNote);
 $('#btnConnect').addEventListener('click', connect);
 $('#btnStop').addEventListener('click', stopNow);
-document.addEventListener('keydown', e => { if (e.key === 'Escape' && app.grbl) { e.preventDefault(); stopNow(); } });
+document.addEventListener('keydown', onKey);
 $('#allowMotion').addEventListener('change', e => setPerms(e.target.checked, e.target.checked && app.perms.laser));
 $('#allowLaser').addEventListener('change', e => {
   if (e.target.checked && !app.perms.motion) { e.target.checked = false; log(t('need_motion'), 'bad'); return; }
@@ -977,7 +1583,7 @@ $('#allowLaser').addEventListener('change', e => {
   setPerms(app.perms.motion, e.target.checked);
 });
 $$('[data-jog]').forEach(b => b.addEventListener('click', () => { const [dx, dy] = b.dataset.jog.split(',').map(Number); jog(dx, $('#origin').value === 'fl' ? dy : -dy); }));
-$('#btnHome').addEventListener('click', () => gated('$H'));
+$('#btnHome').addEventListener('click', () => gated('$H', 120000));
 $('#btnFocus').addEventListener('click', () => gated('G38.2', 90000));
 $('#btnAirOn').addEventListener('click', () => gated('M8'));
 $('#btnAirOff').addEventListener('click', () => gated('M9'));
@@ -993,12 +1599,67 @@ $('#btnPause').addEventListener('click', () => {
   $('#btnPause').textContent = t(app.paused ? 'resume' : 'pause');
 });
 $('#btnDownload').addEventListener('click', () => {
+  regenerate();
   const blob = new Blob([app.job.lines.join('\n') + '\n'], {type: 'text/plain'});
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
-  a.download = (app.job.name || 'job').replace(/\.[^.]+$/, '') + '.gcode'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  a.download = (app.raw ? app.raw.name.replace(/\.[^.]+$/, '') : 'toocaalaser-job') + '.gcode'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 });
-$('#fileInput').addEventListener('change', e => { const f = e.target.files[0]; if (f) loadFile(f); e.target.value = ''; });
-$('#btnDemo').addEventListener('click', () => loadFile(new File([DEMO], 'toocaalaser-demo.svg', {type: 'image/svg+xml'})));
+$('#origin').addEventListener('change', () => { regenerate(); autosave(); });
+$('#air').addEventListener('change', () => { regenerate(); autosave(); });
+$('#showPaths').addEventListener('change', draw);
+
+// editor toolbar
+$('#fileInput').addEventListener('change', e => { const f = [...e.target.files]; e.target.value = ''; loadFiles(f); });
+$('#tText').addEventListener('click', () => addText());
+$('#tRect').addEventListener('click', () => addShape('rect'));
+$('#tEllipse').addEventListener('click', () => addShape('ellipse'));
+$('#tDemo').addEventListener('click', () => {
+  const v = vectorObj(svgToPolys(DEMO), 'Demo'); v.x = 20; v.y = 20; addObj(v);
+  const o = newObj('text', {name: 'ToocaaLaser', text: 'ToocaaLaser', font: 'Arial', bold: true, italic: false, h: 10, x: 20, y: 80});
+  setText(o, false); addObj(o);
+});
+$('#tUndo').addEventListener('click', undo);
+$('#tRedo').addEventListener('click', redo);
+$('#tCopy').addEventListener('click', copySel);
+$('#tPaste').addEventListener('click', () => pasteClip());
+$('#tDup').addEventListener('click', duplicateSel);
+$('#tDel').addEventListener('click', deleteSel);
+$('#tSave').addEventListener('click', saveProjectFile);
+$('#projInput').addEventListener('change', async e => {
+  const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+  try { await loadProject(JSON.parse(await f.text())); log('project loaded: ' + f.name, 'ok'); } catch (err) { log('project: ' + errText(err), 'bad'); }
+});
+$('#tClear').addEventListener('click', () => { if (!ed.objs.length || !confirm(t('confirm_clear'))) return; pushUndo(); ed.objs = []; ed.sel = null; app.burns = []; afterEdit(); });
+$('#rawClose').addEventListener('click', () => { app.raw = null; afterEdit(); });
+
+// properties
+$$('[data-prop]').forEach(el => {
+  const snap = () => { if (propSnap === null) propSnap = snapshot(); };
+  el.addEventListener('focus', snap); el.addEventListener('pointerdown', snap);
+  el.addEventListener('input', () => { snap(); applyProp(el); });
+  el.addEventListener('change', () => { applyProp(el); if (propSnap !== null && propSnap !== snapshot()) pushUndo(propSnap); propSnap = null; refreshButtons(); });
+  el.addEventListener('blur', () => { propSnap = null; });
+});
+$('#pFlipH').addEventListener('click', () => flip('flipH'));
+$('#pFlipV').addEventListener('click', () => flip('flipV'));
+$('#pCenter').addEventListener('click', centerSel);
+$('#arrMake').addEventListener('click', makeArray);
+$('#presetSel').addEventListener('change', e => { applyPreset(e.target.value); e.target.value = ''; });
+$('#presetSave').addEventListener('click', savePreset);
+for (const f of FONTS) { const o = document.createElement('option'); o.value = f; o.textContent = f; o.style.fontFamily = GENERIC.has(f) ? f : `"${f}"`; $('#fontSel').append(o); }
+
+// canvas
+const cv = $('#bed');
+cv.addEventListener('pointerdown', onPointerDown);
+cv.addEventListener('pointermove', onPointerMove);
+cv.addEventListener('pointerup', onPointerUp);
+cv.addEventListener('pointercancel', onPointerUp);
+cv.addEventListener('dragover', e => e.preventDefault());
+cv.addEventListener('drop', e => { e.preventDefault(); loadFiles([...e.dataTransfer.files]); });
+window.addEventListener('resize', draw);
+matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', () => { previewCache.clear(); draw(); });
+
+// lbdev audit + console
 $('#lbdevInput').addEventListener('change', async e => {
   const f = e.target.files[0]; if (!f) return; e.target.value = '';
   const out = $('#lbdevOut'); out.classList.remove('hidden');
@@ -1013,9 +1674,19 @@ $('#btnSend').addEventListener('click', sendConsole);
 $('#cmd').addEventListener('keydown', e => { if (e.key === 'Enter') sendConsole(); });
 $$('[data-q]').forEach(b => b.addEventListener('click', () => { const q = b.dataset.q; if (q === '?') app.grbl.rt('?'); else gated(q); }));
 $('#btnClear').addEventListener('click', () => { $('#log').textContent = ''; });
+
+// start
 if (!('serial' in navigator)) $('#linkType').value = 'sim';
-applyLang(); refreshButtons(); draw();
-log('ToocaaLaser ready – pick a connection. Nothing here talks to any cloud.', 'sys');
+applyLang(); syncProps(); renderObjList(); refreshButtons(); draw();
+(async () => {
+  let saved = null;
+  try { saved = JSON.parse(localStorage.getItem('tl-project') || 'null'); } catch {}
+  if (saved && saved.objs && saved.objs.length) {
+    try { await loadProject(saved); log('restored the last project from this browser', 'sys'); } catch {}
+  }
+  regenerate();
+})();
+log('ToocaaLaser ready – nothing here talks to any cloud.', 'sys');
 </script>
 </body>
 </html>
