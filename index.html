@@ -85,6 +85,7 @@ canvas#bed{width:100%;display:block;border-radius:8px;border:1px solid var(--lin
 .objlist{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
 .objlist button{font-size:12.5px;padding:4px 9px}
 .objlist button.on{border-color:var(--sel);color:var(--sel);font-weight:600}
+button.icon{min-width:38px;font-size:16px;padding:4px 8px}
 pre{margin:0;font:12px/1.45 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;white-space:pre-wrap;word-break:break-word}
 #log{background:var(--field);border:1px solid var(--line);border-radius:8px;padding:8px;height:220px;overflow:auto}
 #log .tx{color:var(--acc)}#log .bad{color:var(--bad)}#log .ok{color:var(--ok)}#log .msg{color:var(--warn)}#log .rx{color:var(--fg)}#log .sys{color:var(--mut)}
@@ -131,7 +132,7 @@ details summary{cursor:pointer;color:var(--mut);font-size:12.5px}
       <div class="objlist" id="objList" style="margin-top:0"></div>
       <label class="check" style="margin:0"><input type="checkbox" id="showPaths"><span data-i18n="show_paths">Show toolpaths</span></label>
     </div>
-    <p class="note" id="editHint" data-i18n="edit_hint">Drag to move · corner ■ resizes · top ● rotates · arrows nudge 1 mm (Shift 10 mm) · Ctrl+C / Ctrl+V / Ctrl+D / Ctrl+Z</p>
+    <p class="note" id="editHint" data-i18n="edit_hint"></p>
   </section>
 
   <section class="props" id="propsCard">
@@ -142,19 +143,17 @@ details summary{cursor:pointer;color:var(--mut);font-size:12.5px}
       <button id="rawClose" data-i18n="raw_close">Close G-code, back to the editor</button>
     </div>
     <div id="props" class="hidden">
-      <div class="grid2">
-        <label><span data-i18n="p_name">Name</span><input type="text" data-prop="name"></label>
-        <label><span>X mm</span><input type="number" step="0.5" data-prop="x"></label>
-        <label><span>Y mm</span><input type="number" step="0.5" data-prop="y"></label>
-        <label><span data-i18n="p_w">Width mm</span><input type="number" step="0.5" min="0.5" data-prop="W"></label>
-        <label><span data-i18n="p_h">Height mm</span><input type="number" step="0.5" min="0.5" data-prop="H"></label>
-        <label><span data-i18n="p_rot">Rotation °</span><input type="number" step="1" data-prop="rot"></label>
-      </div>
-      <div class="row" style="margin-top:8px">
-        <label class="check" style="margin:0"><input type="checkbox" id="lockAspect" checked><span data-i18n="lock">Keep proportions</span></label>
-        <button id="pFlipH" data-i18n="flip_h">Mirror ↔</button>
-        <button id="pFlipV" data-i18n="flip_v">Mirror ↕</button>
-        <button id="pCenter" data-i18n="center">Center on plate</button>
+      <p class="note" id="multiInfo" style="margin:0 0 8px"></p>
+      <div class="singleOnly">
+        <div class="grid2">
+          <label><span data-i18n="p_name">Name</span><input type="text" data-prop="name"></label>
+          <label><span>X mm</span><input type="number" step="0.5" data-prop="x"></label>
+          <label><span>Y mm</span><input type="number" step="0.5" data-prop="y"></label>
+          <label><span data-i18n="p_w">Width mm</span><input type="number" step="0.5" min="0.5" data-prop="W"></label>
+          <label><span data-i18n="p_h">Height mm</span><input type="number" step="0.5" min="0.5" data-prop="H"></label>
+          <label><span data-i18n="p_rot">Rotation °</span><input type="number" step="1" data-prop="rot"></label>
+        </div>
+        <label class="check" style="margin-top:8px"><input type="checkbox" id="lockAspect" checked><span data-i18n="lock">Keep proportions</span></label>
       </div>
       <div id="textBox" class="hidden">
         <h3 data-i18n="h_text">Text</h3>
@@ -165,17 +164,51 @@ details summary{cursor:pointer;color:var(--mut);font-size:12.5px}
           <label class="check" style="margin:0"><input type="checkbox" data-prop="italic"><span data-i18n="italic">Italic</span></label>
         </div>
       </div>
-      <h3 data-i18n="h_process">Laser settings</h3>
-      <div class="row" style="margin-bottom:8px">
-        <select id="presetSel" class="grow" aria-label="material preset"></select>
-        <button id="presetSave" data-i18n="preset_save">Save as preset</button>
+
+      <h3 data-i18n="h_arrange">Arrange</h3>
+      <div class="row">
+        <button id="alL" class="icon" data-i18n-title="al_l">⇤</button>
+        <button id="alCH" class="icon" data-i18n-title="al_ch">⇹</button>
+        <button id="alR" class="icon" data-i18n-title="al_r">⇥</button>
+        <span class="sep"></span>
+        <button id="alT" class="icon" data-i18n-title="al_t">⤒</button>
+        <button id="alCV" class="icon" data-i18n-title="al_cv">⇳</button>
+        <button id="alB" class="icon" data-i18n-title="al_b">⤓</button>
+        <span class="sep"></span>
+        <button id="distH" data-i18n="dist_h">Space ↔</button>
+        <button id="distV" data-i18n="dist_v">Space ↕</button>
       </div>
+      <div class="row">
+        <label class="multiOnly"><span data-i18n="align_to">Align to</span> <select id="alignTo"><option value="sel" data-i18n="align_sel">selection</option><option value="plate" data-i18n="align_plate">plate</option></select></label>
+        <button id="pCenter" data-i18n="center">Center on plate</button>
+        <button id="pFlipH" data-i18n="flip_h">Mirror ↔</button>
+        <button id="pFlipV" data-i18n="flip_v">Mirror ↕</button>
+      </div>
+      <div class="row">
+        <button id="oFront" data-i18n="to_front">To front</button>
+        <button id="oUp" data-i18n="forward">Forward</button>
+        <button id="oDown" data-i18n="backward">Backward</button>
+        <button id="oBack" data-i18n="to_back">To back</button>
+        <button id="oLock">🔒</button>
+      </div>
+
+      <h3 data-i18n="h_material">Material</h3>
+      <div class="row"><select id="matSel" class="grow" aria-label="material"></select></div>
+      <div class="row" id="matOps"></div>
+      <p class="note" id="matCur"></p>
+      <p class="note" id="matNote"></p>
+
+      <h3 data-i18n="h_process">Laser settings</h3>
       <div class="grid2">
-        <label><span data-i18n="mode">Mode</span><select data-prop="mode"><option value="line" data-i18n="mode_line">Line (outline)</option><option value="fill" data-i18n="mode_fill">Fill (engrave area)</option></select></label>
+        <label><span data-i18n="mode">Mode</span><select data-prop="mode"><option value="line" data-i18n="mode_line">Line (outline / cut)</option><option value="fill" data-i18n="mode_fill">Fill (engrave area)</option></select></label>
         <label><span data-i18n="power">Power %</span><input type="number" min="0" max="100" step="1" data-prop="power"></label>
         <label><span data-i18n="speed">Speed mm/min</span><input type="number" min="60" max="36000" step="100" data-prop="speed"></label>
         <label><span data-i18n="passes">Passes</span><input type="number" min="1" max="20" step="1" data-prop="passes"></label>
         <label class="fillOnly"><span data-i18n="interval">Line interval mm</span><input type="number" min="0.05" max="1" step="0.01" data-prop="interval"></label>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <select id="presetSel" class="grow" aria-label="own presets"></select>
+        <button id="presetSave" data-i18n="preset_save">Save as preset</button>
       </div>
       <div id="imgBox" class="hidden">
         <h3 data-i18n="h_image">Image</h3>
@@ -198,6 +231,7 @@ details summary{cursor:pointer;color:var(--mut);font-size:12.5px}
   <section>
     <h2 data-i18n="h_job">Job</h2>
     <div class="row">
+      <label><span data-i18n="module">Laser module</span><br><select id="module"><option value="20">20 W</option><option value="10">10 W</option><option value="2">2 W IR</option></select></label>
       <label><span data-i18n="origin">Machine origin</span><br><select id="origin"><option value="rl" data-i18n="origin_rl" selected>Rear-left (TOOCAA profile)</option><option value="fl" data-i18n="origin_fl">Front-left (Y up)</option></select></label>
       <label class="check" style="align-self:flex-end"><input type="checkbox" id="air"><span data-i18n="air">Air assist (M8/M9)</span></label>
     </div>
@@ -306,17 +340,26 @@ const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 // ---------------------------------------------------------------- i18n
 const T = {
   en: {
+    edit_hint: 'Click selects the shape under the pointer · click the same spot again (or Alt+click) for the object underneath · Shift+click adds · drag on empty space selects several · Ctrl+A all · corner ■ resizes · top ● rotates · arrows nudge 1 mm (Shift 10 mm) · 🔒 locked objects can be picked only from the list below',
+    multi_info: '{n} objects selected – settings apply to all of them.',
+    h_arrange: 'Arrange', al_l: 'Align left', al_ch: 'Center horizontally', al_r: 'Align right', al_t: 'Align top', al_cv: 'Center vertically', al_b: 'Align bottom',
+    dist_h: 'Space ↔', dist_v: 'Space ↕', align_to: 'Align to', align_sel: 'selection', align_plate: 'plate',
+    to_front: 'To front', forward: 'Forward', backward: 'Backward', to_back: 'To back', lock_obj: '🔒 Lock', unlock_obj: '🔓 Unlock',
+    h_material: 'Material', mat_pick: 'Choose material…', mat_cur: 'Using', mat_src: 'Source', mat_test: 'Always try a small test piece first.',
+    mat_none: 'TOOCAA publishes no values for this module – set power and speed yourself.',
+    op_fill: 'Engrave', op_line: 'Line', op_cut: 'Cut',
+    mat_skip: '{n} image/text object(s) can only be engraved, not cut – skipped.', mat_air: 'Tip: cutting works best with air assist on (Job → Air assist).',
+    module: 'Laser module', preset_pick: 'My presets…',
     tagline: 'Local design & control for TOOCAA NOVA – no cloud, no account',
     open_file: 'Open file…', t_text: 'Text', t_rect: 'Rectangle', t_ellipse: 'Circle', demo: 'Demo',
     undo: 'Undo', redo: 'Redo', copy: 'Copy', paste: 'Paste', duplicate: 'Duplicate', delete: 'Delete',
     save_proj: 'Save project', open_proj: 'Open project', clear_all: 'Clear', show_paths: 'Show toolpaths',
-    edit_hint: 'Drag to move · corner ■ resizes · top ● rotates · arrows nudge 1 mm (Shift 10 mm) · Ctrl+C / Ctrl+V / Ctrl+D / Ctrl+Z',
     h_props: 'Object', no_sel: 'Nothing selected – add text, a shape or open a file (SVG, PNG, JPG), then click it on the plate.',
     raw_close: 'Close G-code, back to the editor', raw_note: 'G-code file loaded – it runs exactly as written; the editor objects are ignored.',
     p_name: 'Name', p_w: 'Width mm', p_h: 'Height mm', p_rot: 'Rotation °', lock: 'Keep proportions',
     flip_h: 'Mirror ↔', flip_v: 'Mirror ↕', center: 'Center on plate', h_text: 'Text', bold: 'Bold', italic: 'Italic',
-    h_process: 'Laser settings', preset_save: 'Save as preset', preset_pick: 'Material preset…', preset_name: 'Preset name:',
-    mode: 'Mode', mode_line: 'Line (outline)', mode_fill: 'Fill (engrave area)', power: 'Power %', speed: 'Speed mm/min', passes: 'Passes', interval: 'Line interval mm',
+    h_process: 'Laser settings', preset_save: 'Save as preset', preset_name: 'Preset name:',
+    mode: 'Mode', mode_line: 'Line (outline / cut)', mode_fill: 'Fill (engrave area)', power: 'Power %', speed: 'Speed mm/min', passes: 'Passes', interval: 'Line interval mm',
     h_image: 'Image', threshold: 'Threshold', dither: 'Dither (photos)', invert: 'Invert',
     h_array: 'Copy into a grid', cols: 'Columns', rows: 'Rows', gap: 'Gap mm', make_array: 'Create copies',
     h_job: 'Job', origin: 'Machine origin', origin_fl: 'Front-left (Y up)', origin_rl: 'Rear-left (TOOCAA profile)', air: 'Air assist (M8/M9)',
@@ -342,17 +385,26 @@ const T = {
     lines: 'lines', burn: 'burn', est: 'est.', size: 'size', objects: 'objects', new_text: 'Text',
   },
   cs: {
+    edit_hint: 'Klik vybere tvar pod kurzorem · další klik na stejné místo (nebo Alt+klik) vybere objekt pod ním · Shift+klik přidá · tažením po prázdné ploše vybereš víc · Ctrl+A vše · roh ■ mění velikost · horní ● otáčí · šipky posun o 1 mm (Shift 10 mm) · 🔒 zamčené objekty jdou vybrat jen v seznamu pod plochou',
+    multi_info: 'Vybráno {n} objektů – nastavení se použije na všechny.',
+    h_arrange: 'Uspořádání', al_l: 'Zarovnat vlevo', al_ch: 'Na střed vodorovně', al_r: 'Zarovnat vpravo', al_t: 'Zarovnat nahoru', al_cv: 'Na střed svisle', al_b: 'Zarovnat dolů',
+    dist_h: 'Rozmístit ↔', dist_v: 'Rozmístit ↕', align_to: 'Zarovnat k', align_sel: 'výběru', align_plate: 'ploše',
+    to_front: 'Dopředu', forward: 'O úroveň výš', backward: 'O úroveň níž', to_back: 'Dozadu', lock_obj: '🔒 Zamknout', unlock_obj: '🔓 Odemknout',
+    h_material: 'Materiál', mat_pick: 'Vyber materiál…', mat_cur: 'Použito', mat_src: 'Zdroj', mat_test: 'Vždy nejdřív zkus malý vzorek.',
+    mat_none: 'Pro tento modul TOOCAA hodnoty nezveřejňuje – výkon a rychlost nastav sám.',
+    op_fill: 'Gravírovat', op_line: 'Čára', op_cut: 'Řezat',
+    mat_skip: '{n} obrázků/textů jde jen gravírovat, ne řezat – přeskočeno.', mat_air: 'Tip: řezání jde nejlíp se zapnutým vzduchem (Úloha → Vzduch).',
+    module: 'Laserový modul', preset_pick: 'Moje předvolby…',
     tagline: 'Lokální návrh a ovládání TOOCAA NOVA – bez cloudu, bez účtu',
     open_file: 'Otevřít soubor…', t_text: 'Text', t_rect: 'Obdélník', t_ellipse: 'Kruh', demo: 'Ukázka',
     undo: 'Zpět', redo: 'Znovu', copy: 'Kopírovat', paste: 'Vložit', duplicate: 'Duplikovat', delete: 'Smazat',
     save_proj: 'Uložit projekt', open_proj: 'Otevřít projekt', clear_all: 'Vyčistit', show_paths: 'Zobrazit dráhy',
-    edit_hint: 'Táhnutím posuneš · roh ■ mění velikost · horní ● otáčí · šipky posun o 1 mm (Shift 10 mm) · Ctrl+C / Ctrl+V / Ctrl+D / Ctrl+Z',
     h_props: 'Objekt', no_sel: 'Nic není vybrané – přidej text, tvar nebo otevři soubor (SVG, PNG, JPG) a klikni na něj na ploše.',
     raw_close: 'Zavřít G-code, zpět do editoru', raw_note: 'Načtený G-code se pošle přesně tak, jak je; objekty v editoru se ignorují.',
     p_name: 'Název', p_w: 'Šířka mm', p_h: 'Výška mm', p_rot: 'Otočení °', lock: 'Zachovat poměr stran',
     flip_h: 'Zrcadlit ↔', flip_v: 'Zrcadlit ↕', center: 'Na střed plochy', h_text: 'Text', bold: 'Tučně', italic: 'Kurzíva',
-    h_process: 'Nastavení laseru', preset_save: 'Uložit jako předvolbu', preset_pick: 'Předvolba materiálu…', preset_name: 'Název předvolby:',
-    mode: 'Režim', mode_line: 'Čára (obrys)', mode_fill: 'Výplň (gravírování plochy)', power: 'Výkon %', speed: 'Rychlost mm/min', passes: 'Průchody', interval: 'Rozteč řádků mm',
+    h_process: 'Nastavení laseru', preset_save: 'Uložit jako předvolbu', preset_name: 'Název předvolby:',
+    mode: 'Režim', mode_line: 'Čára (obrys / řez)', mode_fill: 'Výplň (gravírování plochy)', power: 'Výkon %', speed: 'Rychlost mm/min', passes: 'Průchody', interval: 'Rozteč řádků mm',
     h_image: 'Obrázek', threshold: 'Práh', dither: 'Rozptyl (fotky)', invert: 'Invertovat',
     h_array: 'Kopírovat do mřížky', cols: 'Sloupce', rows: 'Řádky', gap: 'Mezera mm', make_array: 'Vytvořit kopie',
     h_job: 'Úloha', origin: 'Počátek stroje', origin_fl: 'Vpředu vlevo (Y nahoru)', origin_rl: 'Vzadu vlevo (profil TOOCAA)', air: 'Vzduch (M8/M9)',
@@ -384,11 +436,12 @@ const t = k => (T[lang] && T[lang][k]) || T.en[k] || k;
 function applyLang() {
   document.documentElement.lang = lang;
   $$('[data-i18n]').forEach(el => { el.textContent = t(el.dataset.i18n); });
+  $$('[data-i18n-title]').forEach(el => { el.title = t(el.dataset.i18nTitle); });
   $$('[data-lang]').forEach(b => b.classList.toggle('on', b.dataset.lang === lang));
   $('#btnConnect').textContent = t(app.link ? 'disconnect' : 'connect');
   $('#btnPause').textContent = t(app.paused ? 'resume' : 'pause');
   $('#rawNote').textContent = t('raw_note');
-  fillPresets(); updateConnNote(); updateJobInfo();
+  fillPresets(); fillMaterials(); updateConnNote(); updateJobInfo(); syncProps();
 }
 
 // ---------------------------------------------------------------- Grbl helpers (mirror nova.py)
@@ -740,7 +793,7 @@ function refreshButtons() {
   $('#btnHold').disabled = !c; $('#btnResume').disabled = !c;
   $('#btnSend').disabled = !c; $$('[data-q]').forEach(b => b.disabled = !c);
   $('#linkType').disabled = c;
-  const s = !!ed.sel && !app.raw;
+  const s = ed.selSet.size > 0 && !app.raw;
   $('#tCopy').disabled = !s; $('#tDup').disabled = !s; $('#tDel').disabled = !s;
   $('#tPaste').disabled = !ed.clip || !!app.raw;
   $('#tUndo').disabled = !ed.undo.length; $('#tRedo').disabled = !ed.redo.length;
@@ -828,14 +881,17 @@ async function jog(dx, dy) {
 // seen on screen, Y down. The machine origin is applied only when G-code is
 // generated. Each object: local box w × h (mm) scaled by sx/sy, rotated by
 // rot° around its centre; (x, y) = top-left of the unrotated scaled box.
-const ed = {objs: [], sel: null, images: {}, clip: null, undo: [], redo: [], nid: 1, srcSeq: 0};
+// ed.objs is the z-order (last = on top). ed.sel = primary selected object,
+// ed.selSet = every selected object.
+const ed = {objs: [], sel: null, selSet: new Set(), images: {}, clip: null, undo: [], redo: [], nid: 1, srcSeq: 0, lastClick: null};
 const isRaster = o => o.kind === 'image' || o.kind === 'text';
 const r2 = v => Math.round(v * 100) / 100;
 const f3 = v => (Math.round(v * 1000) / 1000).toString();
+const selList = () => ed.objs.filter(o => ed.selSet.has(o));
 
 function newObj(kind, props) {
   const raster = kind === 'image' || kind === 'text';
-  return Object.assign({id: ed.nid++, kind, name: kind, x: 20, y: 20, w: 20, h: 20, sx: 1, sy: 1, rot: 0, flipH: false, flipV: false,
+  return Object.assign({id: ed.nid++, kind, name: kind, x: 20, y: 20, w: 20, h: 20, sx: 1, sy: 1, rot: 0, flipH: false, flipV: false, locked: false,
     mode: raster ? 'fill' : 'line', power: 40, speed: raster ? 6000 : 3000, passes: 1, interval: 0.1,
     threshold: 128, dither: false, invert: false}, props);
 }
@@ -849,10 +905,23 @@ function toWorld(o, g, u, v) {
   const px = u * o.sx - g.cw / 2, py = v * o.sy - g.ch / 2;
   return [g.cx + px * g.c - py * g.s, g.cy + px * g.s + py * g.c];
 }
+// plate point -> local (u, v) of the object's own box
+function toLocal(o, X, Y) {
+  const g = geom(o), dx = X - g.cx, dy = Y - g.cy;
+  const lx = dx * g.c + dy * g.s, ly = -dx * g.s + dy * g.c;
+  let u = (lx + g.cw / 2) / o.sx, v = (ly + g.ch / 2) / o.sy;
+  if (o.flipH) u = o.w - u;
+  if (o.flipV) v = o.h - v;
+  return [u, v, lx, ly, g];
+}
 function corners(o) { const g = geom(o); return [[0, 0], [o.w, 0], [o.w, o.h], [0, o.h]].map(([u, v]) => toWorld({...o, flipH: false, flipV: false}, g, u, v)); }
 function worldBBox(o) {
   const cs = corners(o), xs = cs.map(p => p[0]), ys = cs.map(p => p[1]);
   return {x0: Math.min(...xs), y0: Math.min(...ys), x1: Math.max(...xs), y1: Math.max(...ys)};
+}
+function groupBBox(list) {
+  const bs = list.map(worldBBox);
+  return {x0: Math.min(...bs.map(b => b.x0)), y0: Math.min(...bs.map(b => b.y0)), x1: Math.max(...bs.map(b => b.x1)), y1: Math.max(...bs.map(b => b.y1))};
 }
 function localPolys(o) {
   if (o.kind === 'vector') return o.polys;
@@ -864,13 +933,44 @@ function localPolys(o) {
   }
   return null;
 }
-function hitObj(p) {
-  for (let i = ed.objs.length - 1; i >= 0; i--) {
-    const o = ed.objs[i], g = geom(o), dx = p.x - g.cx, dy = p.y - g.cy;
-    const lx = dx * g.c + dy * g.s, ly = -dx * g.s + dy * g.c, tol = 6 / p.k;
-    if (Math.abs(lx) <= g.cw / 2 + tol && Math.abs(ly) <= g.ch / 2 + tol) return o;
+
+// --- hit testing: the real shape first, then the smallest box around the point
+const pixCache = new WeakMap();
+function inBox(o, p, tol) { const [, , lx, ly, g] = toLocal(o, p.x, p.y); return Math.abs(lx) <= g.cw / 2 + tol && Math.abs(ly) <= g.ch / 2 + tol; }
+function hitPrecise(o, p) {
+  const tol = 5 / p.k;
+  if (isRaster(o)) {
+    const pv = previewOf(o); if (!pv) return false;
+    let d = pixCache.get(pv);
+    if (!d) { d = pv.getContext('2d').getImageData(0, 0, pv.width, pv.height).data; pixCache.set(pv, d); }
+    const [u, v] = toLocal(o, p.x, p.y), fx = pv.width / o.w, fy = pv.height / o.h;
+    const r = Math.max(1, Math.min(8, tol * fx / o.sx));
+    for (let dy = -r; dy <= r; dy += Math.max(1, r / 2)) for (let dx = -r; dx <= r; dx += Math.max(1, r / 2)) {
+      const px = Math.floor(u * fx + dx), py = Math.floor(v * fy + dy);
+      if (px >= 0 && py >= 0 && px < pv.width && py < pv.height && d[(py * pv.width + px) * 4 + 3] > 0) return true;
+    }
+    return false;
   }
-  return null;
+  const [u, v] = toLocal(o, p.x, p.y), polys = localPolys(o) || [];
+  const su = tol / o.sx, sv = tol / o.sy;            // tolerance in local units
+  let inside = false;
+  for (const poly of polys) for (let i = 1; i < poly.length; i++) {
+    const [ax, ay] = poly[i - 1], [bx, by] = poly[i];
+    // distance to segment (in local units, scaled back to mm)
+    const dx = bx - ax, dy = by - ay, L2 = dx * dx + dy * dy;
+    const tt = L2 ? Math.max(0, Math.min(1, ((u - ax) * dx + (v - ay) * dy) / L2)) : 0;
+    const ex = (ax + tt * dx - u) / su, ey = (ay + tt * dy - v) / sv;
+    if (ex * ex + ey * ey <= 1) return true;
+    if (((ay > v) !== (by > v)) && u < (bx - ax) * (v - ay) / (by - ay) + ax) inside = !inside;
+  }
+  return o.mode === 'fill' && inside;
+}
+function candidatesAt(p) {
+  const boxed = [];
+  for (let i = ed.objs.length - 1; i >= 0; i--) { const o = ed.objs[i]; if (!o.locked && inBox(o, p, 4 / p.k)) boxed.push(o); }
+  const precise = boxed.filter(o => hitPrecise(o, p));
+  const area = o => o.w * o.sx * o.h * o.sy;
+  return [...precise, ...boxed.filter(o => !precise.includes(o)).sort((a, b) => area(a) - area(b))];
 }
 function handles(o, k) {
   const g = geom(o), L = (lx, ly) => [g.cx + lx * g.c - ly * g.s, g.cy + lx * g.s + ly * g.c];
@@ -889,39 +989,114 @@ function placeFree(o) {
 }
 
 // undo / redo – snapshots of the object list (images are referenced by id)
-function snapshot() { return JSON.stringify({objs: ed.objs, sel: ed.sel ? ed.sel.id : null}); }
+function snapshot() { return JSON.stringify({objs: ed.objs, sel: selList().map(o => o.id), primary: ed.sel ? ed.sel.id : null}); }
 function pushUndo(snap = snapshot()) { ed.undo.push(snap); if (ed.undo.length > 150) ed.undo.shift(); ed.redo = []; }
-function restore(s) { const d = JSON.parse(s); ed.objs = d.objs; ed.sel = ed.objs.find(o => o.id === d.sel) || null; afterEdit(); }
+function restore(s) {
+  const d = JSON.parse(s); ed.objs = d.objs;
+  const ids = new Set(d.sel || []); ed.selSet = new Set(ed.objs.filter(o => ids.has(o.id)));
+  ed.sel = ed.objs.find(o => o.id === d.primary) || selList().pop() || null; afterEdit();
+}
 function undo() { if (!ed.undo.length) return; ed.redo.push(snapshot()); restore(ed.undo.pop()); }
 function redo() { if (!ed.redo.length) return; ed.undo.push(snapshot()); restore(ed.redo.pop()); }
 
-function select(o) { ed.sel = o; syncProps(); renderObjList(); refreshButtons(); draw(); }
-function addObj(o) { pushUndo(); if (app.raw) app.raw = null; ed.objs.push(o); ed.sel = o; afterEdit(); }
-function deleteSel() { if (!ed.sel) return; pushUndo(); ed.objs = ed.objs.filter(o => o !== ed.sel); ed.sel = null; afterEdit(); }
-function copySel() { if (ed.sel) { ed.clip = JSON.stringify(ed.sel); refreshButtons(); } }
+function selChanged() { syncProps(); renderObjList(); refreshButtons(); draw(); }
+function select(o, add = false) {
+  if (!add) { ed.selSet = new Set(o ? [o] : []); ed.sel = o || null; }
+  else if (o) {
+    if (ed.selSet.has(o)) { ed.selSet.delete(o); ed.sel = ed.sel === o ? (selList().pop() || null) : ed.sel; }
+    else { ed.selSet.add(o); ed.sel = o; }
+  }
+  selChanged();
+}
+function selectMany(list, add = false) {
+  if (!add) ed.selSet = new Set();
+  list.forEach(o => ed.selSet.add(o));
+  ed.sel = list.length ? list[list.length - 1] : (selList().pop() || null);
+  selChanged();
+}
+function addObjs(list) {
+  pushUndo(); if (app.raw) app.raw = null;
+  ed.objs.push(...list); ed.selSet = new Set(list); ed.sel = list[list.length - 1] || null; afterEdit();
+}
+const addObj = o => addObjs([o]);
+function deleteSel() {
+  if (!ed.selSet.size) return; pushUndo();
+  ed.objs = ed.objs.filter(o => !ed.selSet.has(o)); ed.selSet = new Set(); ed.sel = null; afterEdit();
+}
+function clonesOf(list, dx, dy) { return list.map(o => { const c = JSON.parse(JSON.stringify(o)); c.id = ed.nid++; c.x += dx; c.y += dy; c.locked = false; return c; }); }
+function copySel() { if (ed.selSet.size) { ed.clip = JSON.stringify(selList()); refreshButtons(); } }
 function pasteClip(offset = 5) {
   if (!ed.clip) return;
-  const o = JSON.parse(ed.clip); o.id = ed.nid++; o.x += offset; o.y += offset;
-  ed.clip = JSON.stringify(o); addObj(o);
+  let src = JSON.parse(ed.clip); if (!Array.isArray(src)) src = [src];
+  const list = clonesOf(src, offset, offset);
+  ed.clip = JSON.stringify(list); addObjs(list);
 }
-function duplicateSel() { if (!ed.sel) return; const keep = ed.clip; ed.clip = JSON.stringify(ed.sel); pasteClip(); ed.clip = keep; refreshButtons(); }
+function duplicateSel() { if (ed.selSet.size) addObjs(clonesOf(selList(), 5, 5)); }
 function makeArray() {
-  const o = ed.sel; if (!o) return;
+  const src = selList(); if (!src.length) return;
   const cols = clamp(Math.round(+$('#arrCols').value || 1), 1, 50), rows = clamp(Math.round(+$('#arrRows').value || 1), 1, 50);
-  const gap = Math.max(0, +$('#arrGap').value || 0), b = worldBBox(o);
-  const sx = b.x1 - b.x0 + gap, sy = b.y1 - b.y0 + gap;
-  pushUndo();
+  const gap = Math.max(0, +$('#arrGap').value || 0), b = groupBBox(src);
+  const sx = b.x1 - b.x0 + gap, sy = b.y1 - b.y0 + gap, out = [];
   for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) {
     if (!i && !j) continue;
-    const c = JSON.parse(JSON.stringify(o)); c.id = ed.nid++; c.x += i * sx; c.y += j * sy; c.name = `${o.name} ${j * cols + i + 1}`;
-    ed.objs.push(c);
+    for (const c of clonesOf(src, i * sx, j * sy)) { c.name = `${c.name} ${j * cols + i + 1}`; out.push(c); }
+  }
+  if (!out.length) return;
+  pushUndo(); ed.objs.push(...out); afterEdit();
+}
+function moveObjs(list, dx, dy) { for (const o of list) { o.x = r2(o.x + dx); o.y = r2(o.y + dy); } }
+function centerSel() {
+  const list = selList(); if (!list.length) return;
+  pushUndo(); const b = groupBBox(list);
+  moveObjs(list, BED.w / 2 - (b.x0 + b.x1) / 2, BED.h / 2 - (b.y0 + b.y1) / 2); afterEdit();
+}
+// alignment: to the selection's bounding box (2+ objects) or to the plate
+function align(how) {
+  const list = selList(); if (!list.length) return;
+  const ref = list.length > 1 && $('#alignTo').value === 'sel' ? groupBBox(list) : {x0: 0, y0: 0, x1: BED.w, y1: BED.h};
+  pushUndo();
+  if (how === 'dh' || how === 'dv') {
+    if (list.length < 3) return;
+    const h = how === 'dh', bs = list.map(o => [o, worldBBox(o)]).sort((a, b) => h ? a[1].x0 - b[1].x0 : a[1].y0 - b[1].y0);
+    const span = h ? bs[bs.length - 1][1].x1 - bs[0][1].x0 : bs[bs.length - 1][1].y1 - bs[0][1].y0;
+    const sum = bs.reduce((s, [, b]) => s + (h ? b.x1 - b.x0 : b.y1 - b.y0), 0), gap = (span - sum) / (bs.length - 1);
+    if (gap >= 0) {   // equal gaps between neighbours
+      let pos = h ? bs[0][1].x0 : bs[0][1].y0;
+      for (const [o, b] of bs) { if (h) moveObjs([o], pos - b.x0, 0); else moveObjs([o], 0, pos - b.y0); pos += (h ? b.x1 - b.x0 : b.y1 - b.y0) + gap; }
+    } else {          // overlapping objects: spread their centres evenly instead
+      const c = ([, b]) => h ? (b.x0 + b.x1) / 2 : (b.y0 + b.y1) / 2;
+      bs.sort((p, q) => c(p) - c(q));
+      const c0 = c(bs[0]), step = (c(bs[bs.length - 1]) - c0) / (bs.length - 1);
+      bs.forEach((it, i) => { const d = c0 + i * step - c(it); if (h) moveObjs([it[0]], d, 0); else moveObjs([it[0]], 0, d); });
+    }
+  } else for (const o of list) {
+    const b = worldBBox(o);
+    const dx = how === 'l' ? ref.x0 - b.x0 : how === 'r' ? ref.x1 - b.x1 : how === 'ch' ? (ref.x0 + ref.x1 - b.x0 - b.x1) / 2 : 0;
+    const dy = how === 't' ? ref.y0 - b.y0 : how === 'b' ? ref.y1 - b.y1 : how === 'cv' ? (ref.y0 + ref.y1 - b.y0 - b.y1) / 2 : 0;
+    moveObjs([o], dx, dy);
   }
   afterEdit();
 }
-function centerSel() {
-  const o = ed.sel; if (!o) return;
-  pushUndo(); const b = worldBBox(o);
-  o.x += BED.w / 2 - (b.x0 + b.x1) / 2; o.y += BED.h / 2 - (b.y0 + b.y1) / 2; afterEdit();
+// z-order: 'front' | 'up' | 'down' | 'back'
+function reorder(how) {
+  const set = ed.selSet; if (!set.size) return;
+  pushUndo();
+  const sel = ed.objs.filter(o => set.has(o)), rest = ed.objs.filter(o => !set.has(o));
+  if (how === 'front') ed.objs = [...rest, ...sel];
+  else if (how === 'back') ed.objs = [...sel, ...rest];
+  else {
+    const a = ed.objs.slice(), up = how === 'up';
+    for (let i = up ? a.length - 2 : 1; up ? i >= 0 : i < a.length; i += up ? -1 : 1) {
+      const j = up ? i + 1 : i - 1;
+      if (set.has(a[i]) && !set.has(a[j])) [a[i], a[j]] = [a[j], a[i]];
+    }
+    ed.objs = a;
+  }
+  afterEdit();
+}
+function toggleLock() {
+  const list = selList(); if (!list.length) return;
+  pushUndo(); const v = !list.every(o => o.locked); list.forEach(o => o.locked = v); afterEdit();
 }
 let regenTimer = null, saveTimer = null;
 function afterEdit() {
@@ -931,9 +1106,11 @@ function afterEdit() {
 }
 function renderObjList() {
   const box = $('#objList'); box.textContent = '';
-  for (const o of ed.objs) {
-    const b = document.createElement('button'); b.textContent = o.name || o.kind; b.className = o === ed.sel ? 'on' : '';
-    b.addEventListener('click', () => select(o)); box.append(b);
+  for (const o of ed.objs.slice().reverse()) {   // top of the stack first
+    const b = document.createElement('button');
+    b.textContent = (o.locked ? '🔒 ' : '') + (o.name || o.kind);
+    b.className = ed.selSet.has(o) ? 'on' : '';
+    b.addEventListener('click', e => select(o, e.shiftKey || e.ctrlKey || e.metaKey)); box.append(b);
   }
 }
 
@@ -1062,7 +1239,7 @@ async function loadFiles(files) {
         await addImageFile(file);
       } else {
         app.raw = {name: file.name, lines: (await file.text()).split(/\r?\n/)};
-        ed.sel = null; app.burns = []; afterEdit();
+        ed.sel = null; ed.selSet = new Set(); app.burns = []; afterEdit();
         log(`G-code ${file.name}: ${app.raw.lines.length} lines` + (firesLaser(app.raw.lines) ? ' (uses the laser)' : ''), 'sys');
         continue;
       }
@@ -1223,27 +1400,117 @@ function updateJobInfo() {
   $('#jobNote').textContent = notes.join(' '); $('#jobNote').className = notes.length ? 'note warn' : 'note';
 }
 
-// ---------------------------------------------------------------- material presets
-// Only the kraft-paper values are published by TOOCAA (wiki, 20 W module);
-// everything else is the user's own, stored in this browser.
-const BUILTIN_PRESETS = [
-  {name: 'Kraft paper · fill · 20 W (TOOCAA wiki)', mode: 'fill', speed: 16000, power: 50},
-  {name: 'Kraft paper · line · 20 W (TOOCAA wiki)', mode: 'line', speed: 12000, power: 70},
-];
+// ---------------------------------------------------------------- material library (offline)
+// Source: toocaa.com/pages/material-settings-for-toocaa-machines (L2 20 W /
+// 10 W tables, 2026-10). The 20 W basswood row is identical to the NOVA
+// defaults built into TOOCAA Studio (fill 40 %/24000, cut 100 %/500, line
+// 60 %/2800), i.e. the same 20 W module. Kraft paper = TOOCAA wiki camera
+// calibration values. [power %, speed mm/min, passes]
+const MAT_NAMES = {
+  'Basswood': 'Lipové dřevo', 'Red Beech': 'Červený buk', 'White Oak': 'Bílý dub', 'Red Cherry Wood': 'Třešňové dřevo',
+  'Red Oak': 'Červený dub', 'Rosewood': 'Palisandr', 'Birch': 'Bříza', 'Rubber Wood': 'Kaučukovník', 'Walnut Wood': 'Ořech',
+  'Maple': 'Javor', 'Bamboo': 'Bambus', 'Dark Brown Leather': 'Tmavě hnědá kůže', 'Sky Blue Leather': 'Světle modrá kůže',
+  'Light Brown Leather': 'Světle hnědá kůže', 'Green Leather': 'Zelená kůže', 'Orange Leather': 'Oranžová kůže', 'Brown Leather': 'Hnědá kůže',
+  'Black Acrylic': 'Černé akrylátové sklo', 'Aluminum': 'Hliník', 'Anodized Aluminum': 'Eloxovaný hliník', 'Stainless Steel': 'Nerezová ocel',
+  'Kraft Paper': 'Kraftový papír', 'Red Card Paper': 'Červený karton', 'Red Felt': 'Červená plsť', 'White Tile Painted Black': 'Bílá dlaždice natřená černě',
+};
+const MAT_GROUPS = {wood: ['Wood', 'Dřevo'], leather: ['Leather', 'Kůže'], paper: ['Paper & felt', 'Papír a plsť'], acrylic: ['Acrylic', 'Akrylát'], metal: ['Metal', 'Kov'], other: ['Other', 'Ostatní']};
+const MATERIALS = {
+  20: [
+    {g: 'wood', n: 'Basswood', t: 2.8, fill: [40, 24000, 1], cut: [100, 500, 1], line: [60, 2800, 1], src: 'TOOCAA Studio (NOVA) + L2 20 W table'},
+    {g: 'wood', n: 'Red Beech', t: 3.5, fill: [40, 24000, 1], cut: [100, 400, 1]},
+    {g: 'wood', n: 'White Oak', t: 3.6, fill: [40, 24000, 1], cut: [100, 400, 1]},
+    {g: 'wood', n: 'Red Cherry Wood', t: 3.2, fill: [20, 24000, 1], cut: [100, 700, 1]},
+    {g: 'wood', n: 'Red Oak', t: 3.5, fill: [30, 24000, 1], cut: [100, 300, 1]},
+    {g: 'wood', n: 'Rosewood', t: 3.3, fill: [20, 24000, 1], cut: [100, 100, 1]},
+    {g: 'wood', n: 'Birch', t: 3, fill: [80, 24000, 1], cut: [100, 400, 1]},
+    {g: 'wood', n: 'Rubber Wood', t: 3.2, fill: [50, 21000, 1], cut: [100, 300, 1]},
+    {g: 'wood', n: 'Walnut Wood', t: 3.6, fill: [80, 21000, 1], cut: [100, 400, 1]},
+    {g: 'wood', n: 'Maple', t: 3, fill: [40, 24000, 1], cut: [100, 500, 1]},
+    {g: 'leather', n: 'Dark Brown Leather', t: 1.4, fill: [100, 16500, 1], cut: [50, 900, 1]},
+    {g: 'leather', n: 'Sky Blue Leather', t: 1.0, fill: [70, 16500, 1], cut: [50, 900, 1]},
+    {g: 'leather', n: 'Light Brown Leather', t: 1.8, fill: [60, 24000, 1], cut: [50, 500, 1]},
+    {g: 'leather', n: 'Green Leather', t: 1.0, fill: [100, 24000, 1], cut: [50, 900, 1]},
+    {g: 'leather', n: 'Orange Leather', t: 1.8, fill: [100, 16500, 1], cut: [50, 500, 1]},
+    {g: 'acrylic', n: 'Black Acrylic', t: 2.6, fill: [60, 21000, 1], cut: [100, 200, 1]},
+    {g: 'metal', n: 'Aluminum', t: 0.9, fill: [100, 6000, 1]},
+    {g: 'metal', n: 'Stainless Steel', t: 0.9, fill: [100, 3000, 1]},
+    {g: 'paper', n: 'Kraft Paper', t: 0.2, fill: [50, 16000, 1], line: [70, 12000, 1], src: 'TOOCAA wiki (NOVA camera calibration)'},
+  ],
+  10: [
+    {g: 'wood', n: 'Basswood', t: 2, fill: [40, 3000, 1], cut: [100, 350, 3]},
+    {g: 'wood', n: 'Basswood', t: 4, cut: [100, 200, 1]},
+    {g: 'wood', n: 'Basswood', t: 5, cut: [100, 150, 1]},
+    {g: 'wood', n: 'Basswood', t: 8, cut: [100, 230, 3]},
+    {g: 'wood', n: 'Bamboo', t: 5, fill: [40, 3000, 1], cut: [100, 230, 3]},
+    {g: 'paper', n: 'Kraft Paper', t: 0.2, fill: [25, 3000, 1], cut: [100, 3500, 1]},
+    {g: 'paper', n: 'Red Card Paper', t: 0.2, fill: [25, 3000, 1], cut: [100, 3500, 1]},
+    {g: 'paper', n: 'Red Felt', t: 0.8, fill: [15, 3000, 1], cut: [100, 3500, 1]},
+    {g: 'leather', n: 'Brown Leather', t: 0.65, fill: [20, 3000, 1], cut: [100, 1500, 1]},
+    {g: 'acrylic', n: 'Black Acrylic', t: 4.5, fill: [50, 3000, 1], cut: [100, 120, 2]},
+    {g: 'metal', n: 'Anodized Aluminum', t: 3, fill: [100, 200, 1]},
+    {g: 'metal', n: 'Stainless Steel', t: 2, fill: [100, 500, 1]},
+    {g: 'other', n: 'White Tile Painted Black', t: 6, fill: [95, 3800, 1]},
+  ],
+};
+const matName = m => `${lang === 'cs' ? (MAT_NAMES[m.n] || m.n) : m.n} ${String(m.t).replace('.', lang === 'cs' ? ',' : '.')} mm`;
+function moduleW() { return $('#module').value; }
+function fillMaterials() {
+  const sel = $('#matSel'), cur = sel.value; sel.textContent = '';
+  const first = document.createElement('option'); first.value = ''; first.textContent = t('mat_pick'); sel.append(first);
+  const list = MATERIALS[moduleW()] || [];
+  for (const [g, [en, cs]] of Object.entries(MAT_GROUPS)) {
+    const items = list.map((m, i) => [m, i]).filter(([m]) => m.g === g); if (!items.length) continue;
+    const og = document.createElement('optgroup'); og.label = lang === 'cs' ? cs : en;
+    for (const [m, i] of items) { const o = document.createElement('option'); o.value = String(i); o.textContent = matName(m); og.append(o); }
+    sel.append(og);
+  }
+  sel.value = [...sel.options].some(o => o.value === cur) ? cur : '';
+  renderMatOps();
+}
+function renderMatOps() {
+  const box = $('#matOps'); box.textContent = '';
+  const list = MATERIALS[moduleW()] || [], m = list[+$('#matSel').value];
+  $('#matNote').textContent = !list.length ? t('mat_none') : m ? `${t('mat_src')}: ${m.src || `TOOCAA L2 ${moduleW()} W table`}. ${t('mat_test')}` : '';
+  if (!m || $('#matSel').value === '') return;
+  for (const op of ['fill', 'line', 'cut']) {
+    if (!m[op]) continue;
+    const [pw, sp, ps] = m[op], b = document.createElement('button');
+    b.textContent = `${t('op_' + op)} · ${pw} % · ${sp}${ps > 1 ? ` · ${ps}×` : ''}`;
+    b.addEventListener('click', () => applyMaterial(m, op));
+    box.append(b);
+  }
+}
+function applyMaterial(m, op) {
+  const items = selList(); if (!items.length) return;
+  const [pw, sp, ps] = m[op]; let skipped = 0;
+  pushUndo();
+  for (const o of items) {
+    if (op !== 'fill' && isRaster(o)) { skipped++; continue; }
+    o.mode = op === 'fill' ? 'fill' : 'line'; o.power = pw; o.speed = sp; o.passes = ps;
+    o.material = {n: m.n, t: m.t, op};
+  }
+  if (skipped) log(t('mat_skip').replace('{n}', skipped), 'msg');
+  if (op === 'cut' && !$('#air').checked) log(t('mat_air'), 'msg');
+  afterEdit();
+}
+
+// ---------------------------------------------------------------- own presets (stored in this browser)
 function userPresets() { try { return JSON.parse(localStorage.getItem('tl-presets') || '[]'); } catch { return []; } }
 function fillPresets() {
   const sel = $('#presetSel'); sel.textContent = '';
   const add = (v, txt) => { const o = document.createElement('option'); o.value = v; o.textContent = txt; sel.append(o); };
   add('', t('preset_pick'));
-  BUILTIN_PRESETS.forEach((p, i) => add('b' + i, p.name));
-  userPresets().forEach((p, i) => add('u' + i, '★ ' + p.name));
+  userPresets().forEach((p, i) => add(String(i), '★ ' + p.name));
 }
 function applyPreset(v) {
-  const o = ed.sel; if (!o || !v) return;
-  const p = v[0] === 'b' ? BUILTIN_PRESETS[+v.slice(1)] : userPresets()[+v.slice(1)]; if (!p) return;
+  const p = userPresets()[+v]; if (v === '' || !p) return;
   pushUndo();
-  for (const k of ['mode', 'speed', 'power', 'passes', 'interval']) if (p[k] !== undefined) o[k] = p[k];
-  if (isRaster(o)) o.mode = 'fill';
+  for (const o of selList()) {
+    for (const k of ['mode', 'speed', 'power', 'passes', 'interval']) if (p[k] !== undefined) o[k] = p[k];
+    if (isRaster(o)) o.mode = 'fill';
+    o.material = '★ ' + p.name;
+  }
   afterEdit();
 }
 function savePreset() {
@@ -1256,12 +1523,18 @@ function savePreset() {
 
 // ---------------------------------------------------------------- properties panel
 let propSnap = null;
+const LASER_PROPS = ['mode', 'power', 'speed', 'passes', 'interval'];
 function syncProps() {
-  const o = ed.sel;
+  const o = ed.sel, n = ed.selSet.size;
   $('#rawBox').classList.toggle('hidden', !app.raw);
   $('#noSel').classList.toggle('hidden', !!o || !!app.raw);
   $('#props').classList.toggle('hidden', !o || !!app.raw);
   if (!o || app.raw) return;
+  const multi = n > 1;
+  $$('.singleOnly').forEach(e => e.classList.toggle('hidden', multi));
+  $('#multiInfo').classList.toggle('hidden', !multi);
+  $('#multiInfo').textContent = multi ? t('multi_info').replace('{n}', n) : '';
+  $$('.multiOnly').forEach(e => e.classList.toggle('hidden', !multi));
   const vals = {name: o.name, x: r2(o.x), y: r2(o.y), W: r2(o.w * o.sx), H: r2(o.h * o.sy), rot: r2(o.rot), text: o.text, font: o.font,
     bold: o.bold, italic: o.italic, mode: o.mode, power: o.power, speed: o.speed, passes: o.passes, interval: o.interval,
     threshold: o.threshold, dither: o.dither, invert: o.invert};
@@ -1270,11 +1543,16 @@ function syncProps() {
     const v = vals[el.dataset.prop];
     if (el.type === 'checkbox') el.checked = !!v; else el.value = v ?? '';
   });
-  $('#textBox').classList.toggle('hidden', o.kind !== 'text');
-  $('#imgBox').classList.toggle('hidden', o.kind !== 'image');
-  $('[data-prop="mode"] option[value="line"]').disabled = isRaster(o);
+  $('#textBox').classList.toggle('hidden', multi || o.kind !== 'text');
+  $('#imgBox').classList.toggle('hidden', multi || o.kind !== 'image');
+  $('[data-prop="mode"] option[value="line"]').disabled = selList().every(isRaster);
   $$('.fillOnly').forEach(e => e.classList.toggle('hidden', o.mode !== 'fill'));
   $('#thrVal').textContent = o.threshold;
+  const label = m => !m ? '' : typeof m === 'string' ? m : `${matName(m)} · ${t('op_' + m.op)}`;
+  const mats = [...new Set(selList().map(x => label(x.material)))];
+  $('#matCur').textContent = mats.length === 1 && mats[0] ? `${t('mat_cur')}: ${mats[0]}` : '';
+  $('#oLock').textContent = selList().every(x => x.locked) ? t('unlock_obj') : t('lock_obj');
+  $('#distH').disabled = $('#distV').disabled = n < 3;
 }
 function applyProp(el) {
   const o = ed.sel; if (!o) return;
@@ -1282,25 +1560,28 @@ function applyProp(el) {
   const v = el.type === 'checkbox' ? el.checked : num ? parseFloat(el.value) : el.value;
   if (num && !isFinite(v)) return;
   const lock = $('#lockAspect').checked;
-  if (k === 'W' || k === 'H') {
+  if (LASER_PROPS.includes(k)) {
+    for (const x of selList()) { x[k] = k === 'mode' && isRaster(x) ? 'fill' : v; x.material = ''; }
+  } else if (['threshold', 'dither', 'invert'].includes(k)) {
+    for (const x of selList()) if (x.kind === 'image') x[k] = v;
+  } else if (k === 'W' || k === 'H') {
     const cur = k === 'W' ? o.w * o.sx : o.h * o.sy, f = Math.max(0.5, v) / cur;
     if (lock) { o.sx *= f; o.sy *= f; } else if (k === 'W') o.sx *= f; else o.sy *= f;
   } else if (['text', 'font', 'bold', 'italic'].includes(k)) {
     o[k] = v; if (k === 'text') o.name = (v.split('\n')[0] || 'Text').slice(0, 16);
     setText(o, true);
-  } else if (k === 'mode') o.mode = isRaster(o) ? 'fill' : v;
-  else o[k] = v;
+  } else o[k] = v;
   syncProps(); renderObjList(); draw();
   clearTimeout(regenTimer); regenTimer = setTimeout(regenerate, 300);
   clearTimeout(saveTimer); saveTimer = setTimeout(autosave, 800);
 }
-function flip(axis) { const o = ed.sel; if (!o) return; pushUndo(); o[axis] = !o[axis]; afterEdit(); }
+function flip(axis) { const list = selList(); if (!list.length) return; pushUndo(); list.forEach(o => o[axis] = !o[axis]); afterEdit(); }
 
 // ---------------------------------------------------------------- projects
 function projectData() {
   const images = {};
   for (const o of ed.objs) if (o.kind === 'image' && ed.images[o.src]) images[o.src] = ed.images[o.src].url || ed.images[o.src].canvas.toDataURL('image/png');
-  return {app: 'ToocaaLaser', version: 1, origin: $('#origin').value, air: $('#air').checked, objs: ed.objs, images};
+  return {app: 'ToocaaLaser', version: 1, origin: $('#origin').value, module: $('#module').value, air: $('#air').checked, objs: ed.objs, images};
 }
 function loadImg(url) { return new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error('bad image')); i.src = url; }); }
 async function loadProject(d) {
@@ -1310,10 +1591,11 @@ async function loadProject(d) {
     c.getContext('2d').drawImage(img, 0, 0); ed.images[id] = {canvas: c, url};
   }
   for (const o of d.objs) if (o.kind === 'text') { ed.images[o.src] = {canvas: renderTextCanvas(o)}; }
-  ed.objs = d.objs; ed.sel = null; ed.undo = []; ed.redo = [];
+  ed.objs = d.objs; ed.sel = null; ed.selSet = new Set(); ed.undo = []; ed.redo = [];
   ed.nid = Math.max(0, ...ed.objs.map(o => o.id)) + 1;
   ed.srcSeq = Math.max(0, ...Object.keys(ed.images).map(k => +k.slice(1) || 0)) + 1;
   if (d.origin) $('#origin').value = d.origin;
+  if (d.module && MATERIALS[d.module]) { $('#module').value = d.module; fillMaterials(); }
   $('#air').checked = !!d.air;
   app.raw = null; afterEdit();
 }
@@ -1346,6 +1628,7 @@ function drawNow() {
   x.globalAlpha = app.raw ? 0.25 : 1;
   for (const o of ed.objs) {
     const g = geom(o);
+    x.globalAlpha = (app.raw ? 0.25 : 1) * (o.locked ? 0.6 : 1);
     if (isRaster(o)) {
       const pv = previewOf(o);
       if (pv) { x.save(); x.translate(g.cx * k, g.cy * k); x.rotate(o.rot * Math.PI / 180); x.scale(o.flipH ? -1 : 1, o.flipV ? -1 : 1); x.drawImage(pv, -g.cw / 2 * k, -g.ch / 2 * k, g.cw * k, g.ch * k); x.restore(); }
@@ -1382,24 +1665,41 @@ function drawNow() {
     x.arc(hx, hy, 6, 0, Math.PI * 2); x.moveTo(hx - 10, hy); x.lineTo(hx + 10, hy); x.moveTo(hx, hy - 10); x.lineTo(hx, hy + 10); x.stroke();
   }
   // selection
-  const o = ed.sel;
-  if (o && !app.raw) {
-    const sel = col('--sel'), h = handles(o, k);
-    x.save(); x.strokeStyle = sel; x.lineWidth = 1.2; x.setLineDash([4, 3]); x.beginPath();
-    corners(o).forEach(([wx, wy], i) => i ? x.lineTo(wx * k, wy * k) : x.moveTo(wx * k, wy * k)); x.closePath(); x.stroke();
-    x.setLineDash([]); x.beginPath(); x.moveTo(h.top[0] * k, h.top[1] * k); x.lineTo(h.rot[0] * k, h.rot[1] * k); x.stroke();
-    x.fillStyle = col('--panel'); x.lineWidth = 2;
-    x.beginPath(); x.arc(h.rot[0] * k, h.rot[1] * k, 6, 0, Math.PI * 2); x.fill(); x.stroke();
-    x.beginPath(); x.rect(h.scale[0] * k - 6, h.scale[1] * k - 6, 12, 12); x.fill(); x.stroke();
+  if (!app.raw && ed.selSet.size) {
+    const sel = col('--sel'), list = selList();
+    x.save(); x.strokeStyle = sel; x.lineWidth = 1.2; x.setLineDash([4, 3]);
+    for (const so of list) { x.beginPath(); corners(so).forEach(([wx, wy], i) => i ? x.lineTo(wx * k, wy * k) : x.moveTo(wx * k, wy * k)); x.closePath(); x.stroke(); }
+    if (list.length > 1) {
+      const b = groupBBox(list); x.setLineDash([2, 4]); x.strokeRect(b.x0 * k - 4, b.y0 * k - 4, (b.x1 - b.x0) * k + 8, (b.y1 - b.y0) * k + 8);
+    } else if (!list[0].locked) {
+      const h = handles(list[0], k);
+      x.setLineDash([]); x.beginPath(); x.moveTo(h.top[0] * k, h.top[1] * k); x.lineTo(h.rot[0] * k, h.rot[1] * k); x.stroke();
+      x.fillStyle = col('--panel'); x.lineWidth = 2;
+      x.beginPath(); x.arc(h.rot[0] * k, h.rot[1] * k, 6, 0, Math.PI * 2); x.fill(); x.stroke();
+      x.beginPath(); x.rect(h.scale[0] * k - 6, h.scale[1] * k - 6, 12, 12); x.fill(); x.stroke();
+    }
+    x.restore();
+  }
+  if (drag && drag.type === 'marquee') {
+    const a = drag.start, c2 = drag.cur;
+    x.save(); x.strokeStyle = col('--sel'); x.fillStyle = col('--sel'); x.globalAlpha = 0.12;
+    x.fillRect(Math.min(a.x, c2.x) * k, Math.min(a.y, c2.y) * k, Math.abs(c2.x - a.x) * k, Math.abs(c2.y - a.y) * k);
+    x.globalAlpha = 1; x.setLineDash([4, 3]); x.lineWidth = 1;
+    x.strokeRect(Math.min(a.x, c2.x) * k, Math.min(a.y, c2.y) * k, Math.abs(c2.x - a.x) * k, Math.abs(c2.y - a.y) * k);
     x.restore();
   }
 }
 
 // ---------------------------------------------------------------- pointer + keyboard editing
+// click            = topmost object whose real shape is under the pointer
+// click again      = (same spot, nothing moved) the next object underneath
+// Alt+click        = the object under the current one
+// Shift/Ctrl+click = add / remove from the selection
+// drag on empty    = rubber-band selection (Shift adds)
 let drag = null;
 function evMM(e) { const r = $('#bed').getBoundingClientRect(), k = r.width / BED.w; return {x: (e.clientX - r.left) / k, y: (e.clientY - r.top) / k, k}; }
 function handleAt(p) {
-  const o = ed.sel; if (!o || app.raw) return null;
+  const o = ed.sel; if (!o || app.raw || ed.selSet.size !== 1 || o.locked) return null;
   const h = handles(o, p.k), rad = 13 / p.k, d = q => Math.hypot(p.x - q[0], p.y - q[1]);
   if (d(h.scale) < rad) return 'scale';
   if (d(h.rot) < rad) return 'rotate';
@@ -1410,20 +1710,43 @@ function onPointerDown(e) {
   const p = evMM(e), h = handleAt(p);
   if (h) drag = {type: h, snap: snapshot(), o: ed.sel, o0: {...ed.sel}, g0: geom(ed.sel), start: p};
   else {
-    const o = hitObj(p);
-    if (o !== ed.sel) select(o);
-    if (o) drag = {type: 'move', snap: snapshot(), o, o0: {x: o.x, y: o.y}, start: p};
+    const cands = candidatesAt(p), add = e.shiftKey || e.ctrlKey || e.metaKey;
+    const lc = ed.lastClick, again = lc && Math.hypot(lc.x - p.x, lc.y - p.y) * p.k < 5 && performance.now() - lc.t < 4000;
+    ed.lastClick = {x: p.x, y: p.y, t: performance.now()};
+    if (!cands.length) {
+      if (!add) select(null);
+      drag = {type: 'marquee', start: p, cur: p, add};
+    } else {
+      let target = cands[0], cycle = false;
+      if (ed.sel && cands.includes(ed.sel) && (e.altKey || again)) {
+        if (e.altKey) target = cands[(cands.indexOf(ed.sel) + 1) % cands.length];
+        else { target = ed.sel; cycle = cands.length > 1 && ed.selSet.size === 1; }
+      }
+      const wasSel = ed.selSet.has(target);
+      if (add) select(target, true);
+      else if (!wasSel) select(target);
+      if (ed.selSet.has(target))
+        drag = {type: 'move', snap: snapshot(), items: selList().filter(o => !o.locked).map(o => ({o, x: o.x, y: o.y})),
+          start: p, moved: false, target, cands, cycle, reduce: wasSel && !add && ed.selSet.size > 1};
+    }
   }
   if (drag) { $('#bed').setPointerCapture(e.pointerId); e.preventDefault(); }
 }
 function onPointerMove(e) {
   const p = evMM(e), cv = $('#bed');
-  if (!drag) { const h = handleAt(p); cv.style.cursor = h === 'scale' ? 'nwse-resize' : h === 'rotate' ? 'grab' : hitObj(p) ? 'move' : 'default'; return; }
-  const o = drag.o;
+  if (!drag) {
+    const h = handleAt(p);
+    cv.style.cursor = h === 'scale' ? 'nwse-resize' : h === 'rotate' ? 'grab' : ed.objs.some(o => !o.locked && inBox(o, p, 0)) ? 'move' : 'default';
+    return;
+  }
+  if (drag.type === 'marquee') { drag.cur = p; draw(); return; }
   if (drag.type === 'move') {
-    o.x = r2(drag.o0.x + p.x - drag.start.x); o.y = r2(drag.o0.y + p.y - drag.start.y);
+    const dx = p.x - drag.start.x, dy = p.y - drag.start.y;
+    if (!drag.moved && Math.hypot(dx, dy) * p.k < 3) return;   // ignore jitter on plain clicks
+    drag.moved = true;
+    for (const it of drag.items) { it.o.x = r2(it.x + dx); it.o.y = r2(it.y + dy); }
   } else if (drag.type === 'scale') {
-    const g = drag.g0, Ax = g.cx - g.cw / 2 * g.c + g.ch / 2 * g.s, Ay = g.cy - g.cw / 2 * g.s - g.ch / 2 * g.c;
+    const o = drag.o, g = drag.g0, Ax = g.cx - g.cw / 2 * g.c + g.ch / 2 * g.s, Ay = g.cy - g.cw / 2 * g.s - g.ch / 2 * g.c;
     const vx = p.x - Ax, vy = p.y - Ay, lx = vx * g.c + vy * g.s, ly = -vx * g.s + vy * g.c;
     let ncw, nch;
     if ($('#lockAspect').checked !== e.shiftKey) { const f = Math.max(lx / g.cw, ly / g.ch, 0.5 / Math.min(g.cw, g.ch)); ncw = g.cw * f; nch = g.ch * f; }
@@ -1435,14 +1758,25 @@ function onPointerMove(e) {
     const g = drag.g0, step = e.shiftKey ? 15 : 1;
     let a = Math.atan2(p.y - g.cy, p.x - g.cx) * 180 / Math.PI + 90;
     a = Math.round(a / step) * step; if (a > 180) a -= 360; if (a <= -180) a += 360;
-    o.rot = a;
+    drag.o.rot = a;
   }
   syncProps(); draw();
 }
 function onPointerUp() {
   if (!drag) return;
-  if (snapshot() !== drag.snap) { pushUndo(drag.snap); afterEdit(); }
-  drag = null;
+  const d = drag; drag = null;
+  if (d.type === 'marquee') {
+    const x0 = Math.min(d.start.x, d.cur.x), x1 = Math.max(d.start.x, d.cur.x), y0 = Math.min(d.start.y, d.cur.y), y1 = Math.max(d.start.y, d.cur.y);
+    if ((x1 - x0) * d.start.k > 3 || (y1 - y0) * d.start.k > 3)
+      selectMany(ed.objs.filter(o => { if (o.locked) return false; const b = worldBBox(o); return b.x1 >= x0 && b.x0 <= x1 && b.y1 >= y0 && b.y0 <= y1; }), d.add);
+    draw(); return;
+  }
+  if (d.type === 'move' && !d.moved) {
+    if (d.cycle) { const c = d.cands; select(c[(c.indexOf(d.target) + 1) % c.length]); }
+    else if (d.reduce) select(d.target);
+    return;
+  }
+  if (snapshot() !== d.snap) { pushUndo(d.snap); afterEdit(); }
 }
 function onKey(e) {
   if (e.key === 'Escape' && app.grbl) { e.preventDefault(); stopNow(); return; }
@@ -1452,14 +1786,15 @@ function onKey(e) {
   if (mod && key === 'z' && !e.shiftKey) { e.preventDefault(); undo(); return; }
   if (mod && (key === 'y' || (key === 'z' && e.shiftKey))) { e.preventDefault(); redo(); return; }
   if (mod && key === 'v') { e.preventDefault(); pasteClip(); return; }
-  if (!ed.sel) return;
+  if (mod && key === 'a') { e.preventDefault(); selectMany(ed.objs.filter(o => !o.locked)); return; }
+  if (!ed.selSet.size) return;
   if (mod && key === 'c') { e.preventDefault(); copySel(); }
   else if (mod && key === 'd') { e.preventDefault(); duplicateSel(); }
   else if (key === 'delete' || key === 'backspace') { e.preventDefault(); deleteSel(); }
   else if (e.key.startsWith('Arrow')) {
     e.preventDefault(); const d = e.shiftKey ? 10 : 1; pushUndo();
-    if (e.key === 'ArrowLeft') ed.sel.x -= d; if (e.key === 'ArrowRight') ed.sel.x += d;
-    if (e.key === 'ArrowUp') ed.sel.y -= d; if (e.key === 'ArrowDown') ed.sel.y += d;
+    const list = selList().filter(o => !o.locked);
+    moveObjs(list, e.key === 'ArrowLeft' ? -d : e.key === 'ArrowRight' ? d : 0, e.key === 'ArrowUp' ? -d : e.key === 'ArrowDown' ? d : 0);
     afterEdit();
   }
 }
@@ -1629,7 +1964,7 @@ $('#projInput').addEventListener('change', async e => {
   const f = e.target.files[0]; e.target.value = ''; if (!f) return;
   try { await loadProject(JSON.parse(await f.text())); log('project loaded: ' + f.name, 'ok'); } catch (err) { log('project: ' + errText(err), 'bad'); }
 });
-$('#tClear').addEventListener('click', () => { if (!ed.objs.length || !confirm(t('confirm_clear'))) return; pushUndo(); ed.objs = []; ed.sel = null; app.burns = []; afterEdit(); });
+$('#tClear').addEventListener('click', () => { if (!ed.objs.length || !confirm(t('confirm_clear'))) return; pushUndo(); ed.objs = []; ed.sel = null; ed.selSet = new Set(); app.burns = []; afterEdit(); });
 $('#rawClose').addEventListener('click', () => { app.raw = null; afterEdit(); });
 
 // properties
@@ -1644,6 +1979,13 @@ $('#pFlipH').addEventListener('click', () => flip('flipH'));
 $('#pFlipV').addEventListener('click', () => flip('flipV'));
 $('#pCenter').addEventListener('click', centerSel);
 $('#arrMake').addEventListener('click', makeArray);
+for (const [id, how] of [['alL', 'l'], ['alCH', 'ch'], ['alR', 'r'], ['alT', 't'], ['alCV', 'cv'], ['alB', 'b'], ['distH', 'dh'], ['distV', 'dv']])
+  $('#' + id).addEventListener('click', () => align(how));
+for (const [id, how] of [['oFront', 'front'], ['oUp', 'up'], ['oDown', 'down'], ['oBack', 'back']])
+  $('#' + id).addEventListener('click', () => reorder(how));
+$('#oLock').addEventListener('click', toggleLock);
+$('#matSel').addEventListener('change', renderMatOps);
+$('#module').addEventListener('change', () => { try { localStorage.setItem('tl-module', $('#module').value); } catch {} fillMaterials(); autosave(); });
 $('#presetSel').addEventListener('change', e => { applyPreset(e.target.value); e.target.value = ''; });
 $('#presetSave').addEventListener('click', savePreset);
 for (const f of FONTS) { const o = document.createElement('option'); o.value = f; o.textContent = f; o.style.fontFamily = GENERIC.has(f) ? f : `"${f}"`; $('#fontSel').append(o); }
@@ -1677,6 +2019,7 @@ $('#btnClear').addEventListener('click', () => { $('#log').textContent = ''; });
 
 // start
 if (!('serial' in navigator)) $('#linkType').value = 'sim';
+try { const m = localStorage.getItem('tl-module'); if (m && MATERIALS[m] !== undefined || m === '2') $('#module').value = m; } catch {}
 applyLang(); syncProps(); renderObjList(); refreshButtons(); draw();
 (async () => {
   let saved = null;

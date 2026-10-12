@@ -119,12 +119,15 @@ počítač a stroj.
 - [x] Webová aplikace: SVG → G-code, náhled, ověření, rámeček, úloha, posun, konzole
 - [x] Editor: více objektů, posun/zvětšení/otáčení myší, kopírovat/vložit/duplikovat, kopie do mřížky, zpět/znovu, text (libovolné písmo v systému), obdélník/kruh, PNG/JPG s prahem/rozptylem, gravírování výplně, předvolby materiálů, ukládání projektů + automatické ukládání
 - [x] Rychlé odesílání (Grbl character counting)
+- [x] Výběr toho, na co opravdu klikneš (skutečný tvar, ne obdélník kolem); další klik / Alt+klik = objekt pod ním; Shift+klik, výběr tažením, Ctrl+A; zamykání; pořadí vrstev
+- [x] Zarovnání vlevo/na střed/vpravo/nahoru/doprostřed/dolů a rozmístění, k výběru nebo k ploše; všechny akce fungují na víc objektů
+- [x] Offline knihovna materiálů pro moduly 20 W / 10 W – oficiální hodnoty TOOCAA ([material settings](https://www.toocaa.com/pages/material-settings-for-toocaa-machines); řádek lipového dřeva 20 W odpovídá výchozím hodnotám NOVA v TOOCAA Studiu)
 - [x] Audit `.lbdev` (CLI i v prohlížeči)
 - [x] Nalezen oficiální `.lbdev`: autofokus `G38.2`, počátek vzadu vlevo; vzduch M8/M9
 - [x] Wi-Fi přes WebSocket (`ws://IP:8002/ws`, stejně jako TOOCAA Studio)
 - [ ] Ověřit na skutečné NOVA (`probe`, `info`, autofokus, počátek)
 - [ ] Zaměřovací kříž / červené ukazovátko
-- [ ] Gravírování ve stupních šedi (proměnný výkon), výběr více objektů / seskupení, zarovnání
+- [ ] Gravírování ve stupních šedi (proměnný výkon), seskupení
 - [ ] Kamera: stream, kalibrace, umístění motivu na fotku plochy
 
 ## Zdroje

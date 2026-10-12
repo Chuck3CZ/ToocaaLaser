@@ -121,12 +121,15 @@ computer and the machine.
 - [x] Web app: SVG → G-code, preview, check, frame, run, jog, console
 - [x] Editor: several objects, drag/resize/rotate, copy/paste/duplicate, grid array, undo/redo, text (any system font), rectangle/circle, PNG/JPG with threshold/dither, fill engraving, material presets, project save/load + autosave
 - [x] Fast streaming (Grbl character counting)
+- [x] Selecting what you actually clicked (real shape, not the box); click again / Alt+click = object underneath; Shift+click, rubber band, Ctrl+A; lock; layer order
+- [x] Align left/center/right/top/middle/bottom and distribute, to the selection or the plate; every action works on several objects
+- [x] Offline material library for the 20 W / 10 W modules – official TOOCAA values ([material settings](https://www.toocaa.com/pages/material-settings-for-toocaa-machines); the 20 W basswood row matches the NOVA defaults in TOOCAA Studio)
 - [x] `.lbdev` audit (CLI + browser)
 - [x] Official `.lbdev` found: autofocus `G38.2`, origin rear-left; air assist M8/M9
 - [x] Wi-Fi WebSocket transport (`ws://IP:8002/ws`, as TOOCAA Studio)
 - [ ] Verify on a real NOVA (`probe`, `info`, autofocus, origin)
 - [ ] Crosshair / red-dot pointer
-- [ ] Grayscale (variable power) image engraving, multi-select / grouping, alignment tools
+- [ ] Grayscale (variable power) image engraving, grouping
 - [ ] Camera: stream, calibration, placing designs on a photo of the bed
 
 ## Sources
