@@ -117,9 +117,9 @@ footer a,.note a{color:var(--acc)}
       <label><span data-i18n="scale">Scale %</span><input type="number" id="scale" min="1" max="1000" step="1" value="100"></label>
       <label><span data-i18n="posx">X from left mm</span><input type="number" id="posx" step="0.5" value="20"></label>
       <label><span data-i18n="posy">Y from top mm</span><input type="number" id="posy" step="0.5" value="20"></label>
-      <label><span data-i18n="origin">Machine origin</span><select id="origin"><option value="fl" data-i18n="origin_fl">Front-left (Y up)</option><option value="rl" data-i18n="origin_rl">Rear-left (Y down)</option></select></label>
+      <label><span data-i18n="origin">Machine origin</span><select id="origin"><option value="rl" data-i18n="origin_rl" selected>Rear-left (TOOCAA profile)</option><option value="fl" data-i18n="origin_fl">Front-left (Y up)</option></select></label>
     </div>
-    <label class="check"><input type="checkbox" id="air"><span data-i18n="air">Air assist with M8/M9 (unconfirmed on NOVA – verify via the .lbdev audit)</span></label>
+    <label class="check"><input type="checkbox" id="air"><span data-i18n="air">Air assist (M8/M9, as TOOCAA Studio does)</span></label>
     <div class="row" style="margin-top:6px">
       <button id="btnCheck" data-i18n="check" disabled>Check (no motion)</button>
       <button id="btnFrame" data-i18n="frame" disabled>Frame (laser off)</button>
@@ -189,6 +189,7 @@ footer a,.note a{color:var(--acc)}
         <label><span data-i18n="step">Step mm</span><br><select id="step"><option>0.1</option><option>1</option><option selected>10</option><option>50</option></select></label>
         <label><span data-i18n="jogfeed">Feed mm/min</span><br><input type="number" id="jogFeed" value="3000" min="60" max="20000" step="100"></label>
         <div class="row"><button id="btnUnlock" title="$X" data-i18n="unlock">Unlock</button><button id="btnHold" title="!">Hold</button><button id="btnResume" title="~">Resume</button></div>
+        <div class="row"><button id="btnFocus" title="G38.2" data-i18n="focus">Autofocus</button><button id="btnAirOn" title="M8" data-i18n="air_on">Air on</button><button id="btnAirOff" title="M9" data-i18n="air_off">Air off</button></div>
       </div>
     </div>
   </section>
@@ -226,8 +227,8 @@ const T = {
     tagline: 'Local control for TOOCAA NOVA – no cloud, no account',
     h_work: 'Work area 297 × 210 mm', h_design: 'Design & job', open_file: 'Open SVG or G-code…', demo: 'Demo design',
     power: 'Power %', speed: 'Speed mm/min', passes: 'Passes', mode: 'Mode', mode_m4: 'Engrave (M4 dynamic)', mode_m3: 'Cut (M3 constant)',
-    scale: 'Scale %', posx: 'X from left mm', posy: 'Y from top mm', origin: 'Machine origin', origin_fl: 'Front-left (Y up)', origin_rl: 'Rear-left (Y down)',
-    air: 'Air assist with M8/M9 (unconfirmed on NOVA – verify via the .lbdev audit)',
+    scale: 'Scale %', posx: 'X from left mm', posy: 'Y from top mm', origin: 'Machine origin', origin_fl: 'Front-left (Y up)', origin_rl: 'Rear-left (TOOCAA profile)',
+    air: 'Air assist (M8/M9, as TOOCAA Studio does)', focus: 'Autofocus', air_on: 'Air on', air_off: 'Air off',
     check: 'Check (no motion)', frame: 'Frame (laser off)', run: 'Start job', pause: 'Pause', resume: 'Resume', download: 'Download .gcode',
     h_lbdev: 'LightBurn profile audit (.lbdev)', open_lbdev: 'Open toocaa_nova.lbdev…',
     lbdev_note: 'Read in your browser only – nothing is uploaded. Shows device type, baud rate, bed size and every embedded G-code macro (autofocus, air assist, crosshair).',
@@ -238,7 +239,7 @@ const T = {
     h_jog: 'Jog (laser off)', step: 'Step mm', jogfeed: 'Feed mm/min', unlock: 'Unlock', h_console: 'Console', send: 'Send', clear: 'Clear',
     footer: "Unofficial project, not affiliated with TOOCAA. Talks to the machine's Grbl_ESP32 controller directly; nothing leaves your computer.",
     note_usb: 'Plug the NOVA in over USB, click Connect and pick its port. Needs Chrome or Edge on desktop.',
-    note_wifi: 'Run on your computer: python3 bridge.py --port <NOVA IP>. An https page may only reach the NOVA through localhost.',
+    note_wifi: 'Run on your computer: python3 bridge.py --port <NOVA IP> (NOVA Wi-Fi WebSocket, port 8002), then confirm the connection on the NOVA touchscreen. An https page may only reach the NOVA through localhost.',
     note_sim: 'Built-in Grbl_ESP32 simulator – try everything without the machine.',
     no_webserial: 'This browser has no Web Serial – use Chrome or Edge on desktop, or the Wi-Fi bridge.',
     need_motion: 'Refused: tick “Allow motion” first.', need_laser: 'Refused: this job switches the laser on – tick “Allow laser”.',
@@ -252,8 +253,8 @@ const T = {
     tagline: 'Lokální ovládání TOOCAA NOVA – bez cloudu, bez účtu',
     h_work: 'Pracovní plocha 297 × 210 mm', h_design: 'Motiv a úloha', open_file: 'Otevřít SVG nebo G-code…', demo: 'Ukázkový motiv',
     power: 'Výkon %', speed: 'Rychlost mm/min', passes: 'Průchody', mode: 'Režim', mode_m4: 'Gravírování (M4 dynamický)', mode_m3: 'Řezání (M3 konstantní)',
-    scale: 'Měřítko %', posx: 'X zleva mm', posy: 'Y shora mm', origin: 'Počátek stroje', origin_fl: 'Vpředu vlevo (Y nahoru)', origin_rl: 'Vzadu vlevo (Y dolů)',
-    air: 'Vzduch (air assist) přes M8/M9 (u NOVA neověřeno – zkontroluj auditem .lbdev)',
+    scale: 'Měřítko %', posx: 'X zleva mm', posy: 'Y shora mm', origin: 'Počátek stroje', origin_fl: 'Vpředu vlevo (Y nahoru)', origin_rl: 'Vzadu vlevo (profil TOOCAA)',
+    air: 'Vzduch (air assist) M8/M9, stejně jako TOOCAA Studio', focus: 'Autofokus', air_on: 'Vzduch zap.', air_off: 'Vzduch vyp.',
     check: 'Ověřit (bez pohybu)', frame: 'Rámeček (laser vyp.)', run: 'Spustit úlohu', pause: 'Pauza', resume: 'Pokračovat', download: 'Stáhnout .gcode',
     h_lbdev: 'Audit profilu LightBurn (.lbdev)', open_lbdev: 'Otevřít toocaa_nova.lbdev…',
     lbdev_note: 'Čte se jen v prohlížeči – nic se nikam neposílá. Ukáže typ zařízení, rychlost linky, rozměry plochy a všechna vložená G-code makra (autofokus, vzduch, zaměřovací kříž).',
@@ -264,7 +265,7 @@ const T = {
     h_jog: 'Posun (laser vyp.)', step: 'Krok mm', jogfeed: 'Rychlost mm/min', unlock: 'Odemknout', h_console: 'Konzole', send: 'Odeslat', clear: 'Vymazat',
     footer: 'Neoficiální projekt, nemá vztah k TOOCAA. Komunikuje přímo s řadičem Grbl_ESP32 ve stroji; nic neopouští tvůj počítač.',
     note_usb: 'Připoj NOVA přes USB, klikni na Připojit a vyber její port. Potřebuje Chrome nebo Edge na počítači.',
-    note_wifi: 'Na počítači spusť: python3 bridge.py --port <IP NOVA>. Stránka přes https se k NOVA dostane jen přes localhost.',
+    note_wifi: 'Na počítači spusť: python3 bridge.py --port <IP NOVA> (Wi-Fi WebSocket NOVA, port 8002) a připojení potvrď na displeji NOVA. Stránka přes https se k NOVA dostane jen přes localhost.',
     note_sim: 'Vestavěný simulátor Grbl_ESP32 – vyzkoušej vše bez stroje.',
     no_webserial: 'Tento prohlížeč nemá Web Serial – použij Chrome nebo Edge na počítači, nebo Wi-Fi most.',
     need_motion: 'Odmítnuto: nejdřív zaškrtni „Povolit pohyb“.', need_laser: 'Odmítnuto: úloha zapíná laser – zaškrtni „Povolit laser“.',
@@ -482,6 +483,7 @@ class SimLink {
     let moved = false, abs = m.abs, motion = m.motion;
     for (const [k, v] of w) {
       if (k === 'G') {
+        if (v === 38.2) { if (!m.check) { this.head[2] = m.pos[2] = 12.5; return [`[PRB:${this.head.map(x => x.toFixed(3)).join(',')}:1]`, 'ok']; } return ['ok']; }
         if ([0, 1, 2, 3].includes(v)) motion = v; else if (v === 90) abs = true; else if (v === 91) abs = false;
         else if (![17, 20, 21, 54, 94, 4, 92].includes(v)) return ['error:20'];
       } else if (k === 'M') { if (![2, 3, 4, 5, 7, 8, 9, 30].includes(v)) return ['error:20']; }
@@ -590,7 +592,7 @@ function refreshButtons() {
   $('#btnRun').disabled = !c || r || !hasJob || !app.perms.motion || !app.job.inBed;
   $('#btnPause').disabled = !r;
   $('#btnDownload').disabled = !hasJob;
-  $$('[data-jog],#btnHome,#btnUnlock').forEach(b => b.disabled = !c || r || !app.perms.motion);
+  $$('[data-jog],#btnHome,#btnUnlock,#btnFocus,#btnAirOn,#btnAirOff').forEach(b => b.disabled = !c || r || !app.perms.motion);
   $('#btnHold').disabled = !c; $('#btnResume').disabled = !c;
   $('#btnSend').disabled = !c; $$('[data-q]').forEach(b => b.disabled = !c);
   $('#linkType').disabled = c;
@@ -660,12 +662,12 @@ function onStatus(st) {
 function addBurn(a, b) { app.burns.push([a[0], a[1], b[0], b[1]]); if (app.burns.length > 200000) app.burns.splice(0, 50000); draw(); }
 
 // ---------------------------------------------------------------- gated commands
-async function gated(line) {
+async function gated(line, timeout = 10000) {
   const kind = classify(line);
   if (kind === 'forbidden') { log(t('forbidden'), 'bad'); return null; }
   if (kind === 'motion' && !app.perms.motion) { log(t('need_motion'), 'bad'); return null; }
   if (kind === 'laser' && !(app.perms.motion && app.perms.laser)) { log(t('need_laser'), 'bad'); return null; }
-  try { return await app.grbl.cmd(line); } catch (e) { log(errText(e), 'bad'); return null; }
+  try { return await app.grbl.cmd(line, timeout); } catch (e) { log(errText(e), 'bad'); return null; }
 }
 async function jog(dx, dy) {
   const step = +$('#step').value, f = +$('#jogFeed').value || 1000;
@@ -916,7 +918,7 @@ window.addEventListener('resize', draw);
 matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', draw);
 
 // ---------------------------------------------------------------- .lbdev audit (mirror lbdev_audit.py)
-const INTERESTING = /(type|driver|baud|width|height|size|origin|home|power|speed|rate|macro|button|gcode|start|end|cmd|command|focus|air|cross|laser|pointer|frame|port|ip|address|host|url|version|name)/i;
+const INTERESTING = /(type|driver|baud|width|height|size|origin|home|power|speed|rate|macro|button|gcode|start|end|cmd|command|focus|air|cross|laser|pointer|frame|port|ip|address|host|url|version|name|mirror|label|content)/i;
 const GCODE_LINE = /^\s*(\$[A-Za-z0-9#/=]|\[ESP\d+\]|[GM]\d+(\.\d+)?\b|[SFXYZ][-+]?\d|T\d+\b|%|\?|!|~)/m;
 function xmlTree(el) {
   const node = {}; for (const a of el.attributes) node[a.name] = a.value;
@@ -976,6 +978,9 @@ $('#allowLaser').addEventListener('change', e => {
 });
 $$('[data-jog]').forEach(b => b.addEventListener('click', () => { const [dx, dy] = b.dataset.jog.split(',').map(Number); jog(dx, $('#origin').value === 'fl' ? dy : -dy); }));
 $('#btnHome').addEventListener('click', () => gated('$H'));
+$('#btnFocus').addEventListener('click', () => gated('G38.2', 90000));
+$('#btnAirOn').addEventListener('click', () => gated('M8'));
+$('#btnAirOff').addEventListener('click', () => gated('M9'));
 $('#btnUnlock').addEventListener('click', async () => { const s = app.grbl.last; if (s && s.state !== 'Alarm') return log('not in Alarm – nothing to unlock', 'sys'); if (await gated('$X')) log('unlocked – position may be wrong, home before a job', 'msg'); });
 $('#btnHold').addEventListener('click', () => app.grbl.rt('!'));
 $('#btnResume').addEventListener('click', () => app.grbl.rt('~'));

@@ -30,15 +30,18 @@ W = Wi-Fi). Z toho plyne:
 
 | Kanál | Protokol | Stav |
 |---|---|---|
-| USB (COM port) | Grbl 1.1, 115200 Bd | ✅ ověřeno (používá ho LightBurn) |
-| Wi-Fi Telnet, TCP 23 | stejný proud jako USB | ⚠ standard Grbl_ESP32 – ověř přes `probe` |
-| Wi-Fi HTTP 80 / WebSocket 81 | webové UI ve stylu ESP3D | ⚠ standard Grbl_ESP32 – ověř přes `probe` |
-| Autofokus, kříž, vzduch | makra TOOCAA (G-code) | ❓ budou v `toocaa_nova.lbdev` |
-| Kamera | jen TOOCAA Studio | ❓ neznámé, později |
+| USB (COM port) | Grbl 1.1, 115200 Bd | ✅ používá ho LightBurn i TOOCAA Studio |
+| Wi-Fi | WebSocket `ws://IP:8002/ws` + HTTP `/v1/…` | 📄 nalezeno v TOOCAA Studiu – ověř přes `probe` |
+| Autofokus | `G38.2` (oficiální makro LightBurn „FOCUS“), Studio: `FF FC X Y` | 📄 oficiální profil |
+| Vzduch | `M8` / `M9` | 📄 G-code z TOOCAA Studia |
+| Počátek | vzadu vlevo (`MirrorY: true` v profilu) | 📄 oficiální profil – ověř jedním posunem |
+| Kamera | běžná USB webkamera („2K AF WEBCAM“) | 📄 wiki – zatím nezapojeno |
+| Zaměřovací kříž | ? | ❓ zatím nenalezeno |
 
-Jádrem je tedy standardní, veřejně zdokumentovaný protokol Grbl. Ověřit zbývá
-jen nadstavby TOOCAA (autofokus, kamera, vzduchové čerpadlo). Přesně k tomu
-slouží audit `.lbdev` a příkaz `probe`.
+Jádrem je tedy standardní, veřejně zdokumentovaný protokol Grbl. Nadstavby
+TOOCAA pocházejí z oficiálního
+[`toocaa_nova.lbdev`](https://wiki.toocaa.com/toocaa_nova.lbdev) a z veřejného
+kódu TOOCAA Studia. Podrobnosti a zdroje: **[PROTOCOL.md](PROTOCOL.md)**.
 
 ## Co tu je
 
@@ -47,6 +50,7 @@ slouží audit `.lbdev` a příkaz `probe`.
 | [`index.html`](index.html) | **Webová aplikace** (jediný soubor, bez buildu). USB přes Web Serial, Wi-Fi přes most, vestavěný simulátor. SVG → G-code, náhled drah, ověření, rámeček, odeslání úlohy, posun, konzole, audit `.lbdev`. CZ/EN. |
 | [`nova.py`](nova.py) | Knihovna + CLI v Pythonu: `probe`, `info`, `status`, `jog`, `home`, `unlock`, `check`, `run`, `hold`, `resume`, `stop` |
 | [`bridge.py`](bridge.py) | Lokální most (WebSocket ↔ NOVA přes Wi-Fi/USB), který zároveň servíruje aplikaci offline |
+| [`PROTOCOL.md`](PROTOCOL.md) | Vše, co víme o protokolu NOVA (USB, Wi-Fi 8002, příkazy `FF`, profil), se zdroji |
 | [`lbdev_audit.py`](lbdev_audit.py) | Audit souboru `toocaa_nova.lbdev` **jen pro čtení** (JSON/XML, najde i makra kódovaná v base64) |
 | [`grbl_sim.py`](grbl_sim.py) | Simulátor NOVA (Grbl_ESP32 1.3a, plocha A4, soft limity, check mód, alarmy) |
 | [`test_toocaa_laser.py`](test_toocaa_laser.py) | End-to-end testy proti simulátoru (`python3 -m unittest -v`) |
@@ -62,7 +66,7 @@ Stačí Python 3.9+ se standardní knihovnou. Pro USB z Pythonu je potřeba `pip
 2. **Průzkum služeb na Wi-Fi.** Stroji se neposílá žádný příkaz:
    `python3 nova.py probe <IP NOVA>`
 3. **Identita a nastavení.** Jen čtení:
-   `python3 nova.py -p COM5 info` (USB) nebo `-p <IP NOVA>` (telnet)
+   `python3 nova.py -p COM5 info` (USB) nebo `-p <IP NOVA>` (Wi-Fi, pak potvrď na displeji)
 4. **Ověření úlohy.** Grbl `$C` projde celou úlohu bez pohybu:
    `python3 nova.py -p COM5 check uloha.gcode`
 5. **Posun s vypnutým laserem:** `python3 nova.py -p COM5 --allow-motion jog X10 Y10`
@@ -72,7 +76,8 @@ Stačí Python 3.9+ se standardní knihovnou. Pro USB z Pythonu je potřeba `pip
 
 - **USB:** Chrome/Edge na počítači, *Připojit* a vybrat port NOVA. Vše běží
   přímo v prohlížeči.
-- **Wi-Fi:** na počítači spusť `python3 bridge.py --port <IP NOVA>` a v aplikaci
+- **Wi-Fi:** na počítači spusť `python3 bridge.py --port <IP NOVA>` (připojí se
+  na WebSocket NOVA na portu 8002, takže potvrď na displeji) a v aplikaci
   zvol *Wi-Fi přes lokální most*. Stránka z https (GitHub Pages) nesmí otevřít
   `ws://192.168.x.x` napřímo, ale `ws://localhost` ano. Most navíc servíruje
   aplikaci na <http://localhost:8765/>, takže funguje úplně offline.
@@ -113,8 +118,10 @@ počítač a stroj.
 - [x] Klient Grbl_ESP32 (USB/telnet), simulátor, testy
 - [x] Webová aplikace: SVG → G-code, náhled, ověření, rámeček, úloha, posun, konzole
 - [x] Audit `.lbdev` (CLI i v prohlížeči)
-- [ ] Ověřit služby na Wi-Fi na skutečné NOVA (`probe`)
-- [ ] Makra TOOCAA (autofokus, kříž, vzduchové čerpadlo) z `.lbdev`
+- [x] Nalezen oficiální `.lbdev`: autofokus `G38.2`, počátek vzadu vlevo; vzduch M8/M9
+- [x] Wi-Fi přes WebSocket (`ws://IP:8002/ws`, stejně jako TOOCAA Studio)
+- [ ] Ověřit na skutečné NOVA (`probe`, `info`, autofokus, počátek)
+- [ ] Zaměřovací kříž / červené ukazovátko
 - [ ] Rastrové gravírování obrázků (dithering, řádkování)
 - [ ] Knihovna materiálů, vrstvy, projekty (SQLite/IndexedDB)
 - [ ] Kamera: stream, kalibrace, umístění motivu na fotku plochy

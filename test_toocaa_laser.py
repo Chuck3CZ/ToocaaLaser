@@ -2,10 +2,14 @@
 """End-to-end tests against the offline simulator. Run: python3 -m unittest -v"""
 
 import base64
+import hashlib
 import json
+import socket
+import threading
 import time
 import unittest
 
+import bridge
 import grbl_sim
 import lbdev_audit
 import nova
@@ -83,6 +87,71 @@ class TestMotion(SimCase):
     def test_jog_step_limit(self):
         with self.assertRaises(nova.NotAllowed):
             self.connect(motion=True).jog(250, 0)
+
+
+class TestNovaFeatures(SimCase):
+    def test_focus_is_motion_gated(self):
+        with self.assertRaises(nova.NotAllowed):
+            self.connect().command("G38.2")
+        out = self.connect(motion=True).command("G38.2")
+        self.assertTrue(out[0].startswith("[PRB:"))
+
+    def test_air_assist(self):
+        n = self.connect(motion=True)
+        n.command("M8")
+        self.assertTrue(n.status().air_assist)
+        n.command("M9")
+        self.assertFalse(n.status().air_assist)
+
+
+class TestWsTransport(unittest.TestCase):
+    """WsTransport against a tiny WebSocket server that answers like the
+    NOVA's ws://IP:8002/ws endpoint (one text message per line)."""
+
+    def setUp(self):
+        self.srv = socket.socket()
+        self.srv.bind(("127.0.0.1", 0))
+        self.srv.listen(1)
+        self.got = []
+        threading.Thread(target=self._serve, daemon=True).start()
+
+    def _serve(self):
+        conn, _ = self.srv.accept()
+        _, h = bridge.read_request(conn)
+        acc = base64.b64encode(hashlib.sha1(h["sec-websocket-key"].encode() + bridge.WS_GUID).digest())
+        conn.sendall(b"HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\n"
+                     b"Connection: Upgrade\r\nSec-WebSocket-Accept: " + acc + b"\r\n\r\n")
+        try:
+            while True:
+                op, data = bridge.ws_recv(conn)
+                if op == 8:
+                    break
+                self.got.append(data)
+                if data.startswith(b"$I"):
+                    for l in (b"[VER:1.3a.202506201830:]", b"[MSG:Using machine:ESP32_V4]", b"ok"):
+                        bridge.ws_send(conn, l + b"\n", 1)
+                elif data.startswith(b"?"):
+                    bridge.ws_send(conn, b"<Idle|MPos:0.000,0.000,0.000|FS:0,0>", 1)
+        except ConnectionError:
+            pass
+        conn.close()
+
+    def tearDown(self):
+        self.srv.close()
+
+    def test_ws_round_trip(self):
+        port = self.srv.getsockname()[1]
+        n = nova.Nova(nova.open_transport("ws://127.0.0.1:%d/ws?clientId=test" % port))
+        try:
+            self.assertIn("[VER:1.3a.202506201830:]", n.command("$I"))
+            self.assertEqual(n.status().state, "Idle")
+        finally:
+            n.close()
+        self.assertEqual(self.got[0], b"$I\n")
+
+    def test_bare_ip_means_nova_wifi(self):
+        url = nova.nova_ws_url("192.168.1.50")
+        self.assertTrue(url.startswith("ws://192.168.1.50:8002/ws?clientId="))
 
 
 class TestStreaming(SimCase):
@@ -179,6 +248,19 @@ class TestLbdev(unittest.TestCase):
         self.assertEqual(g["DeviceList[0].Macros[0].Commands"]["lines"], ["M8", "G4 P0.5"])
         self.assertEqual(g["DeviceList[0].Macros[1].Commands"]["encoding"], "base64")
         self.assertIn("$HZ", g["DeviceList[0].Macros[1].Commands"]["lines"])
+
+    def test_official_nova_profile_shape(self):
+        # structure of https://wiki.toocaa.com/toocaa_nova.lbdev (2026-10)
+        doc = {"DeviceList": [{"DisplayName": "TOOCAA NOVA", "Name": "GRBL", "Type": "Serial",
+                               "Width": 297, "Height": 210, "HomeOnStartup": True,
+                               "MirrorX": False, "MirrorY": True,
+                               "Settings": {"CommPort": "(Choose)", "Macro0_Label": "FOCUS",
+                                            "Macro0_Content": "G38.2\n"}}]}
+        rep = lbdev_audit.audit(json.dumps(doc).encode())
+        facts = {e["path"]: e["value"] for e in rep["facts"]}
+        self.assertEqual(facts["DeviceList[0].MirrorY"], "True")
+        self.assertEqual(facts["DeviceList[0].Settings.Macro0_Label"], "FOCUS")
+        self.assertEqual(rep["gcode"][0]["lines"], ["G38.2"])
 
     def test_xml_profile(self):
         xml = b'<Device Type="GRBL" Baud="115200"><Macro Name="Cross">M3 S10</Macro></Device>'

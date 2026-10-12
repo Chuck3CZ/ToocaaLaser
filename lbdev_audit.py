@@ -29,7 +29,7 @@ import xml.etree.ElementTree as ET
 INTERESTING = re.compile(
     r"(type|driver|baud|width|height|size|origin|home|power|speed|rate|"
     r"macro|button|gcode|start|end|cmd|command|focus|air|cross|laser|"
-    r"pointer|frame|port|ip|address|host|url|version|name)", re.I)
+    r"pointer|frame|port|ip|address|host|url|version|name|mirror|label|content)", re.I)
 GCODE_LINE = re.compile(
     r"^\s*(\$[A-Za-z0-9#/=]|\[ESP\d+\]|[GM]\d+(\.\d+)?\b|[SFXYZ][-+]?\d|"
     r"T\d+\b|%|\?|!|~)", re.M)

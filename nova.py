@@ -14,12 +14,17 @@ That is the build-info format of **Grbl_ESP32** (bdring, version "1.3a").
 OPT letters in Grbl_ESP32: P = parking, H = single-axis homing commands,
 B = Bluetooth, W = Wi-Fi. So the NOVA speaks standard Grbl 1.1 line protocol
 (`ok` / `error:N` / `ALARM:N`, `<...>` status reports, real-time bytes
-`?` `!` `~` Ctrl-X) over USB serial, and Grbl_ESP32 exposes the same stream
-over Wi-Fi via Telnet (TCP 23 by default). None of it needs the TOOCAA cloud.
+`?` `!` `~` Ctrl-X) over USB serial at 115200 Bd. None of it needs the cloud.
 
-TOOCAA's build is customised (autofocus, camera, flame sensor), so anything
-beyond stock Grbl_ESP32 must be confirmed on the machine: run `probe` and
-`info` first – both are read-only.
+TOOCAA's own pieces, from the official LightBurn profile (toocaa_nova.lbdev)
+and the TOOCAA Studio web app / TOOCAA Connect extension:
+  * Wi-Fi = WebSocket `ws://<IP>:8002/ws?clientId=<id>`, text commands, one
+    per message ending in "\n"; HTTP API on the same port (`/v1/deviceInfo`,
+    `/v1/uploadFile`, `/v1/ipComfirm`). The NOVA asks for a confirmation on
+    its touchscreen when a new client connects.
+  * autofocus: `G38.2` (LightBurn macro "FOCUS") or `FF FC X.. Y..` (Studio);
+    air assist: M8 / M9; extra TOOCAA commands are `FF xx` text lines.
+Run `probe` and `info` first – both are read-only.
 
 Safety model (the firmware's own interlocks are never bypassed):
   * read-only by default – only whitelisted query commands are sent;
@@ -35,20 +40,24 @@ Safety model (the firmware's own interlocks are never bypassed):
 Usage:
     python3 nova.py probe 192.168.1.50              # which local services exist
     python3 nova.py -p COM5 info                    # USB: banner, $I, $$, $G
-    python3 nova.py -p 192.168.1.50 status --watch  # Wi-Fi (telnet 23)
+    python3 nova.py -p 192.168.1.50 status --watch  # Wi-Fi (ws://IP:8002/ws)
     python3 nova.py -p COM5 --allow-motion jog X10 Y-5 --feed 1500
+    python3 nova.py -p COM5 --allow-motion focus    # autofocus (G38.2)
     python3 nova.py -p COM5 check job.gcode         # validate in $C check mode
     python3 nova.py -p COM5 --allow-motion --allow-laser run job.gcode
     python3 nova.py -p COM5 stop                    # feed hold + soft reset
 
 Port syntax: COM5, /dev/ttyUSB0, serial:/dev/ttyACM0@115200,
-             192.168.1.50 (telnet 23), tcp:192.168.1.50:23.
+             192.168.1.50 (NOVA Wi-Fi, ws://IP:8002/ws), ws://HOST:PORT/PATH,
+             tcp:HOST:PORT (raw TCP / Grbl_ESP32 telnet / the simulator).
 USB needs pyserial (`pip install pyserial`); Wi-Fi uses only the stdlib.
 """
 
 from __future__ import annotations
 
 import argparse
+import base64
+import os
 import queue
 import re
 import socket
@@ -60,6 +69,7 @@ from dataclasses import dataclass, field
 WORK_AREA_MM = (297.0, 210.0)  # NOVA A4 bed
 DEFAULT_BAUD = 115200
 DEFAULT_TELNET_PORT = 23
+NOVA_WS_PORT = 8002  # TOOCAA Studio: ws://<IP>:8002/ws?clientId=<random>
 MAX_JOG_STEP_MM = 100.0
 
 # Real-time bytes (Grbl 1.1)
@@ -193,6 +203,104 @@ class SerialTransport:
         return "serial:%s@%d" % (self.device, self.baud)
 
 
+class WsTransport:
+    """Minimal RFC 6455 client (stdlib) for the NOVA's Wi-Fi WebSocket.
+    TOOCAA Studio sends every command as one text message ending in "\n"."""
+
+    def __init__(self, url: str, timeout: float = 5.0):
+        m = re.match(r"ws://([^/:]+)(?::(\d+))?(/.*)?$", url)
+        if not m:
+            raise NovaError("bad WebSocket URL %r" % url)
+        host, port, path = m.group(1), int(m.group(2) or 80), m.group(3) or "/"
+        self.url = url
+        self.sock = socket.create_connection((host, port), timeout=timeout)
+        key = base64.b64encode(os.urandom(16)).decode()
+        self.sock.sendall(("GET %s HTTP/1.1\r\nHost: %s:%d\r\nUpgrade: websocket\r\n"
+                           "Connection: Upgrade\r\nSec-WebSocket-Key: %s\r\n"
+                           "Sec-WebSocket-Version: 13\r\n\r\n" % (path, host, port, key)).encode())
+        buf = b""
+        while b"\r\n\r\n" not in buf:
+            chunk = self.sock.recv(4096)
+            if not chunk:
+                raise NovaError("WebSocket handshake failed (connection closed)")
+            buf += chunk
+        head, _, self.buf = buf.partition(b"\r\n\r\n")
+        status = head.split(b"\r\n", 1)[0].decode("latin-1")
+        if " 101 " not in status + " ":
+            raise NovaError("WebSocket handshake refused: %s" % status)
+        self.sock.settimeout(0.2)
+
+    def _frame(self, op: int, payload: bytes) -> bytes:
+        mask = os.urandom(4)
+        n = len(payload)
+        hdr = bytes([0x80 | op])
+        if n < 126:
+            hdr += bytes([0x80 | n])
+        elif n < 65536:
+            hdr += bytes([0x80 | 126]) + n.to_bytes(2, "big")
+        else:
+            hdr += bytes([0x80 | 127]) + n.to_bytes(8, "big")
+        return hdr + mask + bytes(b ^ mask[i % 4] for i, b in enumerate(payload))
+
+    def write(self, data: bytes) -> None:
+        self.sock.sendall(self._frame(1, data))
+
+    def read(self) -> bytes:
+        try:
+            chunk = self.sock.recv(4096)
+        except socket.timeout:
+            chunk = b""
+        else:
+            if not chunk:
+                raise ConnectionError("WebSocket closed by %s" % self.url)
+        self.buf += chunk
+        out = b""
+        while len(self.buf) >= 2:
+            b0, b1 = self.buf[0], self.buf[1]
+            op, n, i = b0 & 0x0F, b1 & 0x7F, 2
+            if n == 126:
+                if len(self.buf) < 4:
+                    break
+                n, i = int.from_bytes(self.buf[2:4], "big"), 4
+            elif n == 127:
+                if len(self.buf) < 10:
+                    break
+                n, i = int.from_bytes(self.buf[2:10], "big"), 10
+            if b1 & 0x80:
+                i += 4  # servers must not mask, but tolerate it
+            if len(self.buf) < i + n:
+                break
+            payload = self.buf[i:i + n]
+            if b1 & 0x80:
+                mk = self.buf[i - 4:i]
+                payload = bytes(b ^ mk[j % 4] for j, b in enumerate(payload))
+            self.buf = self.buf[i + n:]
+            if op in (0, 1, 2):
+                out += payload if payload.endswith(b"\n") else payload + b"\n"
+            elif op == 9:
+                self.sock.sendall(self._frame(10, payload))
+            elif op == 8:
+                raise ConnectionError("WebSocket closed by %s" % self.url)
+        return out
+
+    def close(self) -> None:
+        try:
+            self.sock.sendall(self._frame(8, b""))
+        except OSError:
+            pass
+        try:
+            self.sock.close()
+        except OSError:
+            pass
+
+    def __str__(self) -> str:
+        return self.url
+
+
+def nova_ws_url(host: str) -> str:
+    return "ws://%s:%d/ws?clientId=%s" % (host, NOVA_WS_PORT, base64.b32encode(os.urandom(5)).decode().lower())
+
+
 def strip_telnet_iac(data: bytes) -> bytes:
     if b"\xff" not in data:
         return data
@@ -216,7 +324,9 @@ def strip_telnet_iac(data: bytes) -> bytes:
 
 
 def open_transport(port: str, baud: int = DEFAULT_BAUD):
-    """COM5 | /dev/ttyUSB0 | serial:DEV[@BAUD] | tcp:HOST[:PORT] | HOST[:PORT]"""
+    """COM5 | /dev/ttyUSB0 | serial:DEV[@BAUD] | ws://... | tcp:HOST[:PORT] | HOST"""
+    if port.startswith("ws://"):
+        return WsTransport(port)
     if port.startswith("serial:"):
         dev, _, b = port[7:].partition("@")
         return SerialTransport(dev, int(b) if b else baud)
@@ -224,6 +334,8 @@ def open_transport(port: str, baud: int = DEFAULT_BAUD):
         port = port[4:]
     elif re.match(r"(?i)^(com\d+|/dev/)", port):
         return SerialTransport(port, baud)
+    elif ":" not in port:
+        return WsTransport(nova_ws_url(port))  # bare IP = NOVA Wi-Fi
     host, _, p = port.rpartition(":") if port.count(":") == 1 else (port, "", "")
     return TcpTransport(host or port, int(p) if p else DEFAULT_TELNET_PORT)
 
@@ -626,13 +738,13 @@ class Nova:
 # Probe: discover local services without sending any machine command
 # --------------------------------------------------------------------------
 
-PROBE_PORTS = [23, 80, 81, 443, 8080, 8888, 8899, 1883, 5000, 9000]
+PROBE_PORTS = [8002, 23, 80, 81, 443, 8080, 8888, 1883]
 
 
 def probe(host: str, ports=None, timeout: float = 1.5) -> list[dict]:
-    """TCP connect scan of typical Grbl_ESP32/ESP3D ports. For HTTP ports it
-    does one `GET /` (reads the server banner/title). For telnet it only
-    listens for a greeting. Nothing is written to the controller."""
+    """TCP connect scan: NOVA Wi-Fi port 8002 (one `GET /v1/deviceInfo`, the
+    read-only query TOOCAA Studio makes) plus stock Grbl_ESP32/ESP3D ports
+    (`GET /` on 80/8080, telnet greeting on 23). No machine command is sent."""
     results = []
     for port in ports or PROBE_PORTS:
         r = {"port": port, "open": False}
@@ -645,7 +757,10 @@ def probe(host: str, ports=None, timeout: float = 1.5) -> list[dict]:
         r["open"] = True
         s.settimeout(timeout)
         try:
-            if port in (80, 8080, 5000, 9000):
+            if port == NOVA_WS_PORT:
+                # same read-only query TOOCAA Studio makes after connecting
+                s.sendall(b"GET /v1/deviceInfo HTTP/1.0\r\nHost: %s\r\n\r\n" % host.encode())
+            elif port in (80, 8080):
                 s.sendall(b"GET / HTTP/1.0\r\nHost: %s\r\n\r\n" % host.encode())
             data = b""
             end = time.time() + timeout
@@ -661,6 +776,9 @@ def probe(host: str, ports=None, timeout: float = 1.5) -> list[dict]:
             hdr = re.search(r"(?im)^server:\s*(.+)$", text)
             title = re.search(r"(?is)<title>(.*?)</title>", text)
             r["banner"] = (text.splitlines() or [""])[0][:120]
+            body = text.partition("\r\n\r\n")[2].strip()
+            if body:
+                r["body"] = body[:400]
             if hdr:
                 r["server"] = hdr.group(1).strip()
             if title:
@@ -706,7 +824,7 @@ def main(argv=None) -> int:
     ap.add_argument("--allow-laser", action="store_true", help="allow jobs that fire the laser")
     sub = ap.add_subparsers(dest="cmd", required=True)
 
-    p = sub.add_parser("probe", help="scan an IP for local services (no commands sent)")
+    p = sub.add_parser("probe", help="scan an IP for local services (no machine commands)")
     p.add_argument("host")
     p.add_argument("--ports", help="comma list, default: %s" % ",".join(map(str, PROBE_PORTS)))
     sub.add_parser("info", help="status + $I + $G + $$ (read-only)")
@@ -718,6 +836,9 @@ def main(argv=None) -> int:
     p.add_argument("axes", nargs="+")
     p.add_argument("--feed", type=float, default=1000.0)
     sub.add_parser("home", help="$H homing cycle")
+    sub.add_parser("focus", help="autofocus: G38.2 (the official LightBurn FOCUS macro)")
+    p = sub.add_parser("air", help="air assist pump on/off (M8 / M9)")
+    p.add_argument("state", choices=("on", "off"))
     sub.add_parser("unlock", help="$X clear alarm lock (shows the alarm first)")
     p = sub.add_parser("check", help="validate a G-code file in $C check mode (no motion)")
     p.add_argument("file")
@@ -732,11 +853,12 @@ def main(argv=None) -> int:
         ports = [int(x) for x in a.ports.split(",")] if a.ports else None
         for r in probe(a.host, ports):
             if r["open"]:
-                extra = "  ".join("%s=%r" % (k, r[k]) for k in ("server", "title", "banner") if r.get(k))
+                extra = "  ".join("%s=%r" % (k, r[k]) for k in ("server", "title", "banner", "body") if r.get(k))
                 print("%5d open   %s" % (r["port"], extra))
             else:
                 print("%5d closed" % r["port"])
-        print("\nNext: python3 nova.py -p %s info   (telnet 23, read-only)" % a.host)
+        print("\nNext: python3 nova.py -p %s info   (Wi-Fi ws:%d, read-only;"
+              " confirm on the NOVA touchscreen)" % (a.host, NOVA_WS_PORT))
         return 0
 
     if not a.port:
@@ -775,6 +897,13 @@ def main(argv=None) -> int:
             _print_status(nova.wait_idle(60))
         elif a.cmd == "home":
             nova.command("$H", timeout=120)
+            _print_status(nova.status())
+        elif a.cmd == "focus":
+            for l in nova.command("G38.2", timeout=90):
+                print(l)
+            _print_status(nova.wait_idle(90))
+        elif a.cmd == "air":
+            nova.command("M8" if a.state == "on" else "M9")
             _print_status(nova.status())
         elif a.cmd == "unlock":
             st = nova.status()

@@ -201,6 +201,12 @@ class Machine:
         motion = self.motion
         for l, v in words:
             if l == "G":
+                if v == 38.2:  # NOVA autofocus (LightBurn FOCUS macro)
+                    if self.check:
+                        return ["ok"]
+                    self.pos[2] = 12.5
+                    self.history.append(u)
+                    return ["[PRB:%.3f,%.3f,%.3f:1]" % tuple(self.pos), "ok"]
                 if v in (0, 1, 2, 3):
                     motion = int(v)
                 elif v == 90:

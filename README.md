@@ -31,15 +31,18 @@ W = Wi-Fi). It means:
 
 | Channel | Protocol | Status |
 |---|---|---|
-| USB (COM port) | Grbl 1.1 line protocol, 115200 Bd | ✅ confirmed (LightBurn uses it) |
-| Wi-Fi Telnet, TCP 23 | same stream as USB | ⚠ stock Grbl_ESP32 – verify with `probe` |
-| Wi-Fi HTTP 80 / WebSocket 81 | ESP3D-style web UI | ⚠ stock Grbl_ESP32 – verify with `probe` |
-| Autofocus, crosshair, air assist | TOOCAA macros (G-code) | ❓ will be in `toocaa_nova.lbdev` |
-| Camera | TOOCAA Studio only | ❓ unknown, investigate later |
+| USB (COM port) | Grbl 1.1 line protocol, 115200 Bd | ✅ LightBurn and TOOCAA Studio both use it |
+| Wi-Fi | WebSocket `ws://IP:8002/ws` + HTTP `/v1/…` | 📄 found in TOOCAA Studio – verify with `probe` |
+| Autofocus | `G38.2` (official LightBurn macro "FOCUS"), Studio: `FF FC X Y` | 📄 official profile |
+| Air assist | `M8` / `M9` | 📄 TOOCAA Studio's G-code |
+| Origin | rear-left (`MirrorY: true` in the profile) | 📄 official profile – check with one jog |
+| Camera | standard USB webcam ("2K AF WEBCAM") | 📄 wiki – not integrated yet |
+| Crosshair | ? | ❓ not found yet |
 
 So the core is the standard, public, documented Grbl protocol, not something
-proprietary. Only TOOCAA's extras (autofocus, camera, air pump) still need
-confirming. The `.lbdev` audit and `probe` are there to answer exactly that.
+proprietary. TOOCAA's extras came from the official
+[`toocaa_nova.lbdev`](https://wiki.toocaa.com/toocaa_nova.lbdev) and the
+public TOOCAA Studio code. Details and sources: **[PROTOCOL.md](PROTOCOL.md)**.
 
 ## What's in here
 
@@ -48,6 +51,7 @@ confirming. The `.lbdev` audit and `probe` are there to answer exactly that.
 | [`index.html`](index.html) | **The web app** (single file, no build step). USB over Web Serial, Wi-Fi via the bridge, built-in simulator. SVG → G-code, toolpath preview, check mode, frame, job streaming, jog, console, `.lbdev` audit. CZ/EN. |
 | [`nova.py`](nova.py) | Python library + CLI: `probe`, `info`, `status`, `jog`, `home`, `unlock`, `check`, `run`, `hold`, `resume`, `stop` |
 | [`bridge.py`](bridge.py) | Localhost bridge (WebSocket ↔ NOVA over Wi-Fi/USB) that also serves the web app offline |
+| [`PROTOCOL.md`](PROTOCOL.md) | Everything known about the NOVA protocol (USB, Wi-Fi 8002, `FF` commands, profile) with sources |
 | [`lbdev_audit.py`](lbdev_audit.py) | **Read-only** audit of `toocaa_nova.lbdev` (JSON/XML; finds macros including base64-encoded ones) |
 | [`grbl_sim.py`](grbl_sim.py) | NOVA simulator (Grbl_ESP32 1.3a, A4 bed, soft limits, check mode, alarms) |
 | [`test_toocaa_laser.py`](test_toocaa_laser.py) | End-to-end tests against the simulator (`python3 -m unittest -v`) |
@@ -63,7 +67,7 @@ Python 3.9+ with the standard library only. USB from Python needs `pip install p
 2. **Probe the Wi-Fi services.** This sends no machine command:
    `python3 nova.py probe <NOVA IP>`
 3. **Read the identity and settings.** Read-only:
-   `python3 nova.py -p COM5 info` (USB) or `-p <NOVA IP>` (telnet)
+   `python3 nova.py -p COM5 info` (USB) or `-p <NOVA IP>` (Wi-Fi, then confirm on the touchscreen)
 4. **Check mode.** Grbl `$C` parses the whole job without moving:
    `python3 nova.py -p COM5 check job.gcode`
 5. **Jog with the laser off:** `python3 nova.py -p COM5 --allow-motion jog X10 Y10`
@@ -73,7 +77,8 @@ Python 3.9+ with the standard library only. USB from Python needs `pip install p
 
 - **USB:** Chrome/Edge on a desktop computer, *Connect*, then pick the NOVA's port.
   Everything runs inside the browser.
-- **Wi-Fi:** run `python3 bridge.py --port <NOVA IP>` on your computer and pick
+- **Wi-Fi:** run `python3 bridge.py --port <NOVA IP>` on your computer (it
+  connects to the NOVA's WebSocket on port 8002, so confirm on the touchscreen) and pick
   *Wi-Fi via local bridge* in the app. An https page (GitHub Pages) can't open
   `ws://192.168.x.x` directly, but it can open `ws://localhost`. The bridge also
   serves the app at <http://localhost:8765/>, so it works completely offline.
@@ -115,8 +120,10 @@ computer and the machine.
 - [x] Grbl_ESP32 client (USB/telnet), simulator, tests
 - [x] Web app: SVG → G-code, preview, check, frame, run, jog, console
 - [x] `.lbdev` audit (CLI + browser)
-- [ ] Verify Wi-Fi services on a real NOVA (`probe`)
-- [ ] TOOCAA macros (autofocus, crosshair, air pump) from the `.lbdev`
+- [x] Official `.lbdev` found: autofocus `G38.2`, origin rear-left; air assist M8/M9
+- [x] Wi-Fi WebSocket transport (`ws://IP:8002/ws`, as TOOCAA Studio)
+- [ ] Verify on a real NOVA (`probe`, `info`, autofocus, origin)
+- [ ] Crosshair / red-dot pointer
 - [ ] Raster engraving of bitmaps (dithering, scanline)
 - [ ] Material library, layers, projects (SQLite/IndexedDB)
 - [ ] Camera: stream, calibration, placing designs on a photo of the bed

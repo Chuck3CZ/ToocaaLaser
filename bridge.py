@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
 """
 Local bridge for the ToocaaLaser web app: WebSocket on 127.0.0.1 <-> NOVA
-(Wi-Fi telnet or USB serial). Also serves the web app itself, so it works
+(Wi-Fi WebSocket on port 8002, or USB serial). Same job as TOOCAA's
+"TOOCAA Connect" browser extension, without an extension. Also serves the web app itself, so it works
 fully offline at http://localhost:8765/.
 
 Why it exists: a page served over https (GitHub Pages) may not open
 ws://192.168.x.x (mixed content), but it may open ws://localhost. USB works
 straight from the browser (Web Serial) and does not need this bridge.
 
-    python3 bridge.py --port 192.168.1.50             # NOVA over Wi-Fi
+    python3 bridge.py --port 192.168.1.50             # NOVA Wi-Fi (ws://IP:8002/ws)
     python3 bridge.py --port tcp:127.0.0.1:2323       # the simulator
     python3 bridge.py --port COM5                     # USB via Python
 
