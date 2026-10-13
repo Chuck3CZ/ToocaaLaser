@@ -634,6 +634,7 @@ class SimLink {
       if (this.busy() || !['Idle', 'Alarm'].includes(m.state)) return ['error:8'];
       this.enqueue([0, 0, 0], 3000, false, 0); m.pos = [0, 0, 0]; m.state = 'Run'; return ['ok'];
     }
+    if (u.startsWith('$J=')) return ['error:3'];  // the NOVA has no $J= jogging
     if (u.startsWith('$J=')) {
       if (!['Idle', 'Jog'].includes(m.state) || m.check) return ['error:8'];
       const body = u.slice(3), w = words(body), rel = /G91/.test(body.replace(/\s/g, ''));
@@ -901,12 +902,37 @@ async function gated(line, timeout = 10000) {
   if (kind === 'laser' && !(app.perms.motion && app.perms.laser)) { log(t('need_laser'), 'bad'); return null; }
   try { return await app.grbl.cmd(line, timeout); } catch (e) { log(errText(e), 'bad'); return null; }
 }
+// The NOVA answers `$J=` with error:3 (TOOCAA Studio has no X/Y jog either)
+// and has no soft limits ($20=0). There the head is moved with `G1 … S0`
+// (beam off: laser mode never fires at S0) and the target is checked here.
+const noJog = () => app.noJog || (app.grbl && app.grbl.okAfterStatus === true);
+async function moveHead(x, y, rel, f) {
+  if (!app.perms.motion) { log(t('need_motion'), 'bad'); return false; }
+  const g = app.grbl, w = [x != null ? `X${f3(x)}` : '', y != null ? `Y${f3(y)}` : ''].filter(Boolean).join(' ');
+  if (!noJog()) {
+    try { await g.cmd(`$J=${rel ? 'G91' : 'G90'} G21 ${w} F${f}`); return true; }
+    catch (e) {
+      if (e.code !== 3) { log(errText(e), 'bad'); return false; }
+      app.noJog = true; log('controller has no $J= jogging – moving with G1 … S0 instead', 'sys');
+    }
+  }
+  let st; try { st = await g.status(); } catch (e) { log(errText(e), 'bad'); return false; }  // fresh position
+  if (st.state !== 'Idle') { log('move needs Idle, machine is ' + st.state, 'bad'); return false; }
+  const p = st.pos;
+  if (rel && !p) { log('no position report yet', 'bad'); return false; }
+  const tx = rel ? p[0] + (x || 0) : x ?? p?.[0] ?? 0, ty = rel ? p[1] + (y || 0) : y ?? p?.[1] ?? 0;
+  if (tx < -1e-6 || tx > BED.w + 1e-6 || ty < -1e-6 || ty > BED.h + 1e-6) {
+    log(`target X${f3(tx)} Y${f3(ty)} is outside the ${BED.w} × ${BED.h} mm bed – not sent`, 'bad'); return false;
+  }
+  try { await g.cmd(`${rel ? 'G91' : 'G90'} G21 G1 ${w} F${f} S0`); return true; }
+  catch (e) { log(errText(e), 'bad'); return false; }
+  finally { if (rel) { try { await g.cmd('G90'); } catch {} } }
+}
 async function jog(dx, dy) {
   const step = +$('#step').value, f = +$('#jogFeed').value || 1000;
   const st = app.grbl.last;
   if (st && !['Idle', 'Jog'].includes(st.state)) { log('jog needs Idle, machine is ' + st.state, 'bad'); return; }
-  const w = [dx ? `X${(dx * step).toFixed(3)}` : '', dy ? `Y${(dy * step).toFixed(3)}` : ''].join('');
-  await gated(`$J=G91 G21 ${w} F${f}`);
+  await moveHead(dx ? dx * step : null, dy ? dy * step : null, true, f);
 }
 
 // ---------------------------------------------------------------- editor model
@@ -1888,7 +1914,7 @@ async function frame() {
   const b = app.job.bounds; if (!b || !app.grbl) return;
   const f = +$('#jogFeed').value || 3000;
   for (const [x, y] of [[b.x0, b.y0], [b.x1, b.y0], [b.x1, b.y1], [b.x0, b.y1], [b.x0, b.y0]])
-    if (!(await gated(`$J=G90 G21 X${f3(x)} Y${f3(y)} F${f}`))) return;
+    if (!(await moveHead(x, y, false, f))) return;
 }
 // ---------------------------------------------------------------- .lbdev audit (mirror lbdev_audit.py)
 const INTERESTING = /(type|driver|baud|width|height|size|origin|home|power|speed|rate|macro|button|gcode|start|end|cmd|command|focus|air|cross|laser|pointer|frame|port|ip|address|host|url|version|name|mirror|label|content)/i;

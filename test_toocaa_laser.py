@@ -79,10 +79,28 @@ class TestMotion(SimCase):
         self.assertEqual(self.m.burn, [])
 
     def test_jog_outside_bed_is_rejected_by_controller(self):
+        self.m.nova = False  # stock Grbl: $J= with soft limits
         n = self.connect(motion=True)
         with self.assertRaises(nova.GrblError) as cm:
             n.jog(-5, 0)
         self.assertEqual(cm.exception.code, 15)
+
+    def test_nova_jog_falls_back_to_gcode_move(self):
+        n = self.connect(motion=True)       # NOVA: $J= -> error:3
+        n.jog(10, 5, 1500)
+        self.assertEqual(n.wait_idle(5).mpos[:2], (10.0, 5.0))
+        self.assertTrue(n.no_jog)
+        self.assertIn("G91 G21 G1 X10.000 Y5.000 F1500 S0", self.m.history)
+        self.assertEqual(self.m.burn, [])
+        n.jog(-3, 0)                         # back in G90 afterwards
+        self.assertEqual(n.wait_idle(5).mpos[:2], (7.0, 5.0))
+        self.assertTrue(self.m.absolute)
+
+    def test_nova_jog_outside_bed_refused_by_client(self):
+        n = self.connect(motion=True)
+        with self.assertRaises(nova.NotAllowed):
+            n.jog(-5, 0)
+        self.assertEqual(self.m.state, "Idle")
 
     def test_jog_step_limit(self):
         with self.assertRaises(nova.NotAllowed):

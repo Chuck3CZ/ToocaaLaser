@@ -152,8 +152,14 @@ answers them, but they're not needed.
 | `FF xx` | one `FF xx …` reply line, **no `ok`** | – |
 | `$G` | `error:3` | `[GC:…]` |
 | `$#` | `error:1` | offsets |
+| `$J=` jogging | `error:3` (Studio has no X/Y jog either, only `G91 G0 Z…`) | jog |
 | status report | 4 axes `MPos:x,y,z,a` (A = rotary), `Pn:XY` when idle | 3 axes |
 | lid | `FF LD 1` / `FF LD 0` sent unprompted when the lid opens or closes | – |
+
+Without `$J=`, ToocaaLaser moves the head with `G91 G21 G1 X… Y… F… S0` and then
+`G90`. The beam stays off: laser mode `$32=1` doesn't fire at S0. With `$20=0`
+there are no soft limits, so the client checks the target against the bed
+from a fresh `?` report and only sends the move when the machine is `Idle`.
 
 The extra `ok` after `?` is the dangerous one. A client that polls `?` while
 streaming with character counting takes that `ok` as an acknowledgement of a

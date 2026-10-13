@@ -32,6 +32,9 @@ Recorded on a real NOVA over USB (firmware V1.0.2, see PROTOCOL.md):
   * `FF xx` commands get one `FF xx ...` reply line and no `ok`;
     `FF F1` (device info) and `FF F2` (status) carry base64 JSON.
   * `$G` -> error:3 and `$#` -> error:1 (not supported); `$I` and `$$` work.
+  * `$J=` jogging -> error:3. `jog` falls back to `G91 G1 … S0` + `G90`
+    and checks the target against the bed itself (the NOVA has $20=0, no
+    soft limits). TOOCAA Studio has no X/Y jog at all.
   * status reports have 4 axes (X,Y,Z,A – A = rotary).
 Run `probe` and `info` first – both are read-only.
 
@@ -524,6 +527,8 @@ class Nova:
         self.ok_after_status: bool | None = None
         self._rt_pending = 0     # `?` sent, status report not yet received
         self._eat_ok = False     # drop the next line if it is that `ok`
+        self.no_jog = False      # `$J=` unsupported (NOVA) -> G-code moves
+        self.wco = (0.0, 0.0, 0.0)
         self._rx = threading.Thread(target=self._reader, daemon=True)
         self._rx.start()
 
@@ -553,6 +558,8 @@ class Nova:
                     self.log("< " + redact(line))
                 if line.startswith("<") and line.endswith(">"):
                     st = parse_status(line)
+                    if st.wco:
+                        self.wco = st.wco
                     self.last_status = st
                     if self._rt_pending > 0:
                         self._rt_pending -= 1
@@ -761,7 +768,35 @@ class Nova:
         if st.state not in ("Idle", "Jog"):
             raise NovaError("jog needs Idle state, machine is %s" % st.state)
         words = "".join(" %s%.3f" % (a, v) for a, v in (("X", x), ("Y", y)) if relative is False or v)
-        self.command("$J=%s G21%s F%.0f" % ("G91" if relative else "G90", words, feed))
+        if self.ok_after_status:
+            self.no_jog = True  # NOVA firmware: `$J=` -> error:3
+        if not self.no_jog:
+            try:
+                self.command("$J=%s G21%s F%.0f" % ("G91" if relative else "G90", words, feed))
+                return
+            except GrblError as e:
+                if e.code != 3:
+                    raise
+                self.no_jog = True
+        # No `$J=`: a plain move with the beam forced off (S0; laser mode $32=1
+        # never fires on G0/S0). The controller has no soft limits, so check here.
+        pos = self.work_pos(st)
+        tx, ty = (pos[0] + x, pos[1] + y) if relative else (x, y)
+        if not (-1e-6 <= tx <= WORK_AREA_MM[0] + 1e-6 and -1e-6 <= ty <= WORK_AREA_MM[1] + 1e-6):
+            raise NotAllowed("target X%.1f Y%.1f is outside the %gx%g mm work area"
+                             % (tx, ty, *WORK_AREA_MM))
+        try:
+            self.command("%s G21 G1%s F%.0f S0" % ("G91" if relative else "G90", words, feed))
+        finally:
+            if relative:
+                self.command("G90")
+
+    def work_pos(self, st: Status) -> tuple:
+        if st.wpos:
+            return st.wpos
+        if st.mpos:
+            return tuple(m - (self.wco[i] if i < len(self.wco) else 0.0) for i, m in enumerate(st.mpos))
+        return (0.0, 0.0)
 
     def stream(self, lines: list[str], check_only: bool = False,
                progress=None, poll_every: float = 0.5) -> int:
