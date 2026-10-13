@@ -10,11 +10,21 @@ Grbl_ESP32 controller (build 1.3a, A4 bed). Lets you develop and test
 Simplifications: moves complete instantly but the state reads `Run` for
 `--move-time` seconds after each motion line; no acceleration; soft limits
 on the 297 x 210 mm bed are always on (target outside -> ALARM:2).
+
+NOVA quirks recorded from a real machine over USB (2026-10, firmware V1.0.2,
+see PROTOCOL.md) are on by default, `--stock-grbl` turns them off:
+  * `?` is answered with the status report **and an extra `ok`**;
+  * status reports carry 4 axes (X,Y,Z,A) and `Pn:XY`;
+  * `$G` -> error:3, `$#` -> error:1;
+  * `FF F1` / `FF F2` / `FF R8` reply with one `FF xx ...` line and no `ok`
+    (F1/F2 payload = base64 JSON).
 """
 
 from __future__ import annotations
 
 import argparse
+import base64
+import json
 import re
 import socket
 import threading
@@ -25,21 +35,39 @@ OPTIONS = "[OPT:PHBW]"
 MACHINE = "[MSG:Using machine:ESP32_V4]"
 BANNER = "Grbl 1.3a ['$' for help]"
 
+# `$$` of a real NOVA (firmware V1.0.2, Grbl_ESP32 1.3a), USB capture 2026-10
 SETTINGS = {
-    0: "10", 1: "250", 2: "0", 3: "0", 4: "0", 5: "0", 6: "0", 10: "1",
-    11: "0.010", 12: "0.002", 13: "0", 20: "1", 21: "0", 22: "1", 23: "3",
-    24: "500.000", 25: "3000.000", 26: "250", 27: "1.000", 30: "1000",
-    31: "0", 32: "1", 100: "80.000", 101: "80.000", 102: "800.000",
-    110: "36000.000", 111: "36000.000", 112: "600.000",
-    120: "3000.000", 121: "3000.000", 122: "100.000",
-    130: "297.000", 131: "210.000", 132: "40.000",
+    0: "3", 1: "250", 2: "0", 3: "0", 4: "0", 5: "0", 6: "0", 10: "1",
+    11: "0.010", 12: "0.002", 13: "0", 20: "0", 21: "0", 22: "0", 23: "3",
+    24: "200.000", 25: "2000.000", 26: "500.000", 27: "3.000", 30: "1000.000",
+    31: "0.000", 32: "1",
+    100: "100.000", 101: "100.000", 102: "100.000", 103: "45.000",
+    104: "100.000", 105: "100.000",
+    110: "36000.000", 111: "36000.000", 112: "36000.000", 113: "6000.000",
+    114: "36000.000", 115: "36000.000",
+    120: "5000.000", 121: "5000.000", 122: "1000.000", 123: "500.000",
+    124: "3000.000", 125: "3000.000",
+    130: "300.000", 131: "220.000", 132: "300.000", 133: "300.000",
+    134: "300.000", 135: "300.000",
 }
+# Shapes of the TOOCAA `FF F1` / `FF F2` replies (serial numbers are fake)
+NOVA_DEVICE_INFO = {"data": {
+    "airAssist": {"SN": "TCNVHA0000000000", "hardware_version": "0.0.0", "isOnline": True,
+                  "manufactureDate": "2025-12-15", "version": "0.9.4"},
+    "laser": {"SN": "TCNVFA0000000000", "hardware_version": "0.0.0", "isOnline": True,
+              "manufactureDate": "2025-11-28", "power": 20, "version": "0.9.2", "workTime": 0.5},
+    "rotary": {"isOnline": False},
+    "toocaaNova": {"SN": "TCNVBA0000000000", "hardware_version": "v0.0.0",
+                   "manufactureDate": "2025-12-15", "version": "V1.0.2"}}}
+NOVA_CALIB = ("NOVA_CALIB_V1 method=none scheme=hg_gcode avg=0.0000000000,0.0000000000 "
+              "struct=0.0000000000 ref=0.1000000000 center=148.5000000000,109.5000000000 cmValid=0")
 WORD_RE = re.compile(r"([A-Z])\s*([-+]?\d*\.?\d+)")
 
 
 class Machine:
-    def __init__(self, width=297.0, height=210.0, move_time=0.0):
+    def __init__(self, width=297.0, height=210.0, move_time=0.0, nova_quirks=True):
         self.w, self.h = width, height
+        self.nova = nova_quirks
         self.move_time = move_time
         self.lock = threading.RLock()
         self.clients: list[socket.socket] = []
@@ -83,8 +111,9 @@ class Machine:
             acc += "C"
         acc += self.coolant
         on = self.spindle and st.startswith("Run")
-        line = "<%s|MPos:%.3f,%.3f,%.3f|FS:%.0f,%.0f" % (
-            st, *self.pos, self.f if on else 0, self.s if self.spindle else 0)
+        line = "<%s|MPos:%.3f,%.3f,%.3f%s|FS:%.0f,%.0f" % (
+            st, *self.pos, ",0.000" if self.nova else "",
+            self.f if on else 0, self.s if self.spindle else 0)
         if acc:
             line += "|A:" + acc
         return line + ">"
@@ -123,6 +152,8 @@ class Machine:
             if not ln:
                 return ["ok"]
             u = ln.upper()
+            if self.nova and u.startswith("FF "):
+                return self.toocaa(u)
             if u.startswith("$"):
                 return self.system(ln, u)
             if self.state == "Alarm":
@@ -131,11 +162,35 @@ class Machine:
                 return ["error:9"]
             return self.gcode(u)
 
+    def device_status(self):
+        busy = self.state != "Idle" or time.time() < self.busy_until
+        return {"airPumpState": 1 if self.coolant else 0, "alarm": "NONE",
+                "consumables": {"laserLens": {"wearTime": 0}, "machineFilter": {"wearTime": 0},
+                                "smokePurifier": {"added": False, "wearTime": 0}},
+                "coverPlateState": 0, "grblState": 1 if busy else 0, "inetractMode": 0,
+                "laserTemperature": 28.0, "rotationPartState": 0, "usbConnectState": 1,
+                "workState": 1 if busy else 0}
+
+    def toocaa(self, u):
+        """TOOCAA `FF xx` lines: one reply line with the same prefix, no `ok`."""
+        b64 = lambda d: base64.b64encode(json.dumps(d).encode()).decode()
+        if u == "FF F1":
+            return ["FF F1 " + b64(NOVA_DEVICE_INFO)]
+        if u == "FF F2":
+            return ["FF F2 " + b64(self.device_status())]
+        if u == "FF R8":
+            return ["FF R8 " + NOVA_CALIB]
+        return ["FF ER 0"]  # Studio: "unrecognised command"
+
     def system(self, ln, u):
         if u == "$I":
             return [VERSION, OPTIONS, MACHINE, "ok"]
         if u == "$$":
             return ["$%d=%s" % kv for kv in sorted(SETTINGS.items())] + ["ok"]
+        if u == "$G" and self.nova:
+            return ["error:3"]
+        if u == "$#" and self.nova:
+            return ["error:1"]
         if u == "$G":
             return ["[GC:G%d G54 G17 G21 G%d G94 M%d M9 T0 F%.0f S%.0f]" % (
                 self.motion, 90 if self.absolute else 91,
@@ -278,7 +333,7 @@ def serve_client(m: Machine, conn: socket.socket):
                 if ch in "?!~\x18\x85":
                     r = m.realtime(ch)
                     if r:
-                        conn.sendall((r + "\r\n").encode())
+                        conn.sendall((r + "\r\n" + ("ok\r\n" if m.nova else "")).encode())
                 elif ch == "\n":
                     line, buf = buf.strip("\r"), ""
                     for out in m.line(line):
@@ -324,10 +379,12 @@ def main():
     ap = argparse.ArgumentParser(description="TOOCAA NOVA (Grbl_ESP32) simulator")
     ap.add_argument("--host", default="127.0.0.1")
     ap.add_argument("--port", type=int, default=2323)
+    ap.add_argument("--stock-grbl", action="store_true",
+                    help="plain Grbl_ESP32 replies, without the NOVA quirks")
     ap.add_argument("--move-time", type=float, default=0.05,
                     help="seconds each motion line reports Run")
     a = ap.parse_args()
-    srv = SimServer(a.host, a.port, Machine(move_time=a.move_time)).start()
+    srv = SimServer(a.host, a.port, Machine(move_time=a.move_time, nova_quirks=not a.stock_grbl)).start()
     print("NOVA simulator on %s:%d  (Ctrl-C to quit)" % (a.host, srv.port))
     try:
         while True:

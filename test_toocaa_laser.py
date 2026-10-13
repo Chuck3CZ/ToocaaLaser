@@ -37,13 +37,13 @@ class TestReadOnly(SimCase):
         info = self.connect().info()
         self.assertIn("[VER:1.3a.202506201830:]", info["build"])
         self.assertIn("[MSG:Using machine:ESP32_V4]", info["build"])
-        self.assertIn("$130=297.000", info["settings"])
+        self.assertIn("$130=300.000", info["settings"])  # real NOVA $$
         self.assertTrue(info["status"].startswith("<Idle"))
 
     def test_status(self):
         st = self.connect().status()
         self.assertEqual(st.state, "Idle")
-        self.assertEqual(st.mpos, (0.0, 0.0, 0.0))
+        self.assertEqual(st.mpos, (0.0, 0.0, 0.0, 0.0))  # X,Y,Z,A
 
     def test_motion_refused_without_flag(self):
         n = self.connect()
@@ -202,6 +202,47 @@ class TestStreaming(SimCase):
         self.assertEqual(self.m.spindle, 0)
 
 
+class TestNovaQuirks(SimCase):
+    """Behaviour recorded on a real NOVA over USB (see PROTOCOL.md)."""
+
+    def test_extra_ok_after_status_is_dropped(self):
+        n = self.connect()
+        n.status()
+        self.assertTrue(n.ok_after_status)
+        # many status polls must not leave `ok`s that answer later commands
+        for _ in range(5):
+            n.realtime(nova.RT_STATUS)
+        time.sleep(0.2)
+        self.assertIn("[VER:1.3a.202506201830:]", n.command("$I"))
+        self.assertTrue(n._lines.empty())
+
+    def test_stock_grbl_has_no_extra_ok(self):
+        self.srv.machine.nova = False
+        n = self.connect()
+        n.status()
+        self.assertFalse(n.ok_after_status)
+
+    def test_ff_device_info_and_status(self):
+        d = self.connect().device()
+        self.assertEqual(d["info"]["data"]["laser"]["power"], 20)
+        self.assertTrue(d["info"]["data"]["laser"]["SN"].endswith("…"))
+        self.assertEqual(d["status"]["alarm"], "NONE")
+        self.assertIn("inetractMode", d["status"])
+
+    def test_ff_gating(self):
+        n = self.connect()
+        with self.assertRaises(nova.NotAllowed):
+            n.ff("FF FC X10 Y10")      # autofocus moves the head
+        with self.assertRaises(nova.NotAllowed):
+            n.ff("FF F0 ssid pass")    # never sent
+        self.assertEqual(self.m.history, [])
+
+    def test_unsupported_parser_state(self):
+        with self.assertRaises(nova.GrblError) as e:
+            self.connect().command("$G")
+        self.assertEqual(e.exception.code, 3)
+
+
 class TestHelpers(unittest.TestCase):
     def test_parse_status(self):
         st = nova.parse_status("<Run|MPos:1.000,2.500,0.000|FS:3000,800|A:SF>")
@@ -218,6 +259,14 @@ class TestHelpers(unittest.TestCase):
         self.assertEqual(c("M3 S1"), "laser")
         self.assertEqual(c("$100=80"), "forbidden")
         self.assertEqual(c("; just a comment"), "readonly")
+        self.assertEqual(c("FF F2"), "readonly")
+        self.assertEqual(c("FF FC X10 Y20"), "motion")
+        self.assertEqual(c("FF F0 net pass"), "forbidden")   # Wi-Fi credentials
+        self.assertEqual(c("FF CW C4 1"), "forbidden")       # consumable counter reset
+
+    def test_mask_serials(self):
+        m = nova.mask_serials({"data": {"laser": {"SN": "TCNVFA12345678", "power": 20}}})
+        self.assertEqual(m["data"]["laser"], {"SN": "TCNVFA…", "power": 20})
 
     def test_fires_laser(self):
         self.assertFalse(nova.file_fires_laser(["G0 X1", "M5", "S0"]))

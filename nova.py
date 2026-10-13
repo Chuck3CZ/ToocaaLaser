@@ -24,6 +24,15 @@ and the TOOCAA Studio web app / TOOCAA Connect extension:
     its touchscreen when a new client connects.
   * autofocus: `G38.2` (LightBurn macro "FOCUS") or `FF FC X.. Y..` (Studio);
     air assist: M8 / M9; extra TOOCAA commands are `FF xx` text lines.
+
+Recorded on a real NOVA over USB (firmware V1.0.2, see PROTOCOL.md):
+  * `?` is answered with the status report AND an extra `ok` – stock Grbl
+    sends no `ok`. Left alone, that `ok` acknowledges the wrong line. The
+    client detects the quirk on the first status request and drops it.
+  * `FF xx` commands get one `FF xx ...` reply line and no `ok`;
+    `FF F1` (device info) and `FF F2` (status) carry base64 JSON.
+  * `$G` -> error:3 and `$#` -> error:1 (not supported); `$I` and `$$` work.
+  * status reports have 4 axes (X,Y,Z,A – A = rotary).
 Run `probe` and `info` first – both are read-only.
 
 Safety model (the firmware's own interlocks are never bypassed):
@@ -39,7 +48,8 @@ Safety model (the firmware's own interlocks are never bypassed):
 
 Usage:
     python3 nova.py probe 192.168.1.50              # which local services exist
-    python3 nova.py -p COM5 info                    # USB: banner, $I, $$, $G
+    python3 nova.py -p COM5 info                    # USB: banner, $I, $$, device info
+    python3 nova.py -p COM5 device                  # FF F1 / FF F2 decoded (JSON)
     python3 nova.py -p 192.168.1.50 status --watch  # Wi-Fi (ws://IP:8002/ws)
     python3 nova.py -p COM5 --allow-motion jog X10 Y-5 --feed 1500
     python3 nova.py -p COM5 --allow-motion focus    # autofocus (G38.2)
@@ -57,6 +67,7 @@ from __future__ import annotations
 
 import argparse
 import base64
+import json
 import os
 import queue
 import re
@@ -88,6 +99,12 @@ READONLY_COMMANDS = {
 }
 # Commands that move the machine but never fire the laser.
 MOTION_COMMANDS = {"$H", "$HX", "$HY", "$HZ", "$X"}
+
+# TOOCAA `FF xx` commands (TOOCAA Studio). They reply with one line that
+# starts with the same `FF xx` and send no `ok`.
+FF_READONLY = {"FF F1", "FF F2", "FF R8"}  # device info, status, camera calib.
+FF_MOTION = {"FF FB", "FF FD", "FF FC"}     # Z home, focus home, autofocus
+FF_REPLY_TO = {"FF FB": "FF S3", "FF FC": "FF FC", "FF FD": "FF FD"}
 
 GRBL_ERRORS = {
     1: "Expected command letter", 2: "Bad number format",
@@ -439,6 +456,13 @@ def classify(cmd: str) -> str:
         return "readonly"
     if u in MOTION_COMMANDS:
         return "motion"
+    if u.startswith("FF "):
+        head = " ".join(u.split()[:2])
+        if u in FF_READONLY:
+            return "readonly"
+        if head in FF_MOTION:
+            return "motion"
+        return "forbidden"  # Wi-Fi setup, rename, calibration writes, jobs...
     if u.startswith("$J="):
         return "motion"
     if u.startswith("$") or u.startswith("["):
@@ -447,6 +471,22 @@ def classify(cmd: str) -> str:
         return "readonly"  # comment-only line
     return "laser" if file_fires_laser([c]) or any(
         l == "S" and v > 0 for l, v in gcode_words(c)) else "motion"
+
+
+FF_ERRORS = {  # `FF ER n`, from TOOCAA Studio's handler
+    "0": "command not recognised (old firmware?)", "1": "device still initialising",
+    "2": "device busy", "3": "child lock", "4": "job file could not be parsed",
+    "5": "job file does not exist", "6": "camera in use", "98": "Z motor reset failed",
+}
+
+
+def mask_serials(obj):
+    """Hide serial numbers (keys `SN`) except their first 6 characters."""
+    if isinstance(obj, dict):
+        return {k: (str(v)[:6] + "…" if k == "SN" and v else mask_serials(v)) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [mask_serials(v) for v in obj]
+    return obj
 
 
 def redact(line: str) -> str:
@@ -480,6 +520,10 @@ class Nova:
         self.last_status: Status | None = None
         self.messages: list[str] = []  # async [MSG:..], banners, ALARM
         self.closed_error: Exception | None = None
+        # NOVA quirk: `?` -> status report + `ok`. None = not detected yet.
+        self.ok_after_status: bool | None = None
+        self._rt_pending = 0     # `?` sent, status report not yet received
+        self._eat_ok = False     # drop the next line if it is that `ok`
         self._rx = threading.Thread(target=self._reader, daemon=True)
         self._rx.start()
 
@@ -510,8 +554,15 @@ class Nova:
                 if line.startswith("<") and line.endswith(">"):
                     st = parse_status(line)
                     self.last_status = st
+                    if self._rt_pending > 0:
+                        self._rt_pending -= 1
+                        self._eat_ok = bool(self.ok_after_status)
                     self._status.put(st)
                     continue
+                if self._eat_ok:
+                    self._eat_ok = False
+                    if line == "ok":
+                        continue
                 if line.startswith(("[MSG", "Grbl ", "ALARM:")) or line.startswith("[ESP"):
                     self.messages.append(line)
                 self._lines.put(line)
@@ -528,6 +579,8 @@ class Nova:
             raise NotAllowed("not a real-time command")
         if self.log and b != RT_STATUS:
             self.log("> RT %r" % b)
+        if b == RT_STATUS:
+            self._rt_pending += 1
         self._write(b)
 
     def close(self):
@@ -595,9 +648,80 @@ class Nova:
             self._status.get_nowait()
         self.realtime(RT_STATUS)
         try:
-            return self._status.get(timeout=timeout)
+            st = self._status.get(timeout=timeout)
         except queue.Empty:
+            self._rt_pending = max(0, self._rt_pending - 1)
             raise NovaError("no status report (is this a Grbl controller?)")
+        if self.ok_after_status is None:
+            self._detect_ok_after_status()
+        return st
+
+    def _detect_ok_after_status(self, wait: float = 0.3):
+        """First status request: does an `ok` follow the report (NOVA) or
+        not (stock Grbl)? Only called while no command is in flight."""
+        end = time.time() + wait
+        while time.time() < end:
+            try:
+                line = self._lines.get(timeout=0.05)
+            except queue.Empty:
+                continue
+            if line == "ok":
+                self.ok_after_status = True
+                if self.log:
+                    self.log("# controller answers `?` with an extra `ok` (NOVA) – dropping it")
+                return
+            self._lines.put(line)  # not ours, keep it
+            break
+        self.ok_after_status = False
+
+    def ff(self, cmd: str, timeout: float = 10.0) -> str:
+        """Send a TOOCAA `FF xx` line and return its reply line (no `ok`)."""
+        u = " ".join(cmd.strip().upper().split())
+        if not u.startswith("FF "):
+            raise NotAllowed("not an FF command: %r" % cmd)
+        self.check_allowed(u)
+        head = " ".join(u.split()[:2])
+        want = FF_REPLY_TO.get(head, head)
+        while not self._lines.empty():
+            self._lines.get_nowait()
+        if self.log:
+            self.log("> " + u)
+        self._write(u.encode() + b"\n")
+        end = time.time() + timeout
+        while True:
+            left = end - time.time()
+            if left <= 0:
+                raise NovaError("timeout waiting for reply to %r" % u)
+            try:
+                line = self._lines.get(timeout=left)
+            except queue.Empty:
+                continue
+            if line == "\x00closed":
+                raise NovaError("connection lost: %s" % self.closed_error)
+            if line.startswith(want) or line.startswith("FF ER"):
+                if line.startswith("FF ER"):
+                    raise NovaError("device exception %s (%s)" % (line, FF_ERRORS.get(
+                        line.split()[2] if len(line.split()) > 2 else "", "unknown")))
+                return line
+            m = re.match(r"error:(\d+)", line)
+            if m:
+                raise GrblError(int(m.group(1)), u)
+
+    def ff_json(self, cmd: str, timeout: float = 10.0) -> dict:
+        """`FF F1` / `FF F2`: decode the base64 JSON payload."""
+        line = self.ff(cmd, timeout)
+        payload = line.split(None, 2)[2] if len(line.split(None, 2)) > 2 else ""
+        return json.loads(base64.b64decode(payload).decode("utf-8"))
+
+    def device(self) -> dict:
+        """Device info (`FF F1`, serial numbers masked) and status (`FF F2`)."""
+        res = {}
+        for key, cmd in (("info", "FF F1"), ("status", "FF F2")):
+            try:
+                res[key] = mask_serials(self.ff_json(cmd))
+            except (NovaError, ValueError) as e:
+                res[key] = "<%s>" % e
+        return res
 
     def wait_idle(self, timeout: float = 600.0, poll: float = 0.25) -> Status:
         end = time.time() + timeout
@@ -612,7 +736,7 @@ class Nova:
 
     def info(self) -> dict:
         res = {"status": self.status().raw}
-        for key, cmd in (("build", "$I"), ("parser", "$G"), ("settings", "$$")):
+        for key, cmd in (("build", "$I"), ("settings", "$$")):
             try:
                 res[key] = [redact(l) for l in self.command(cmd)]
             except NovaError as e:
@@ -827,7 +951,8 @@ def main(argv=None) -> int:
     p = sub.add_parser("probe", help="scan an IP for local services (no machine commands)")
     p.add_argument("host")
     p.add_argument("--ports", help="comma list, default: %s" % ",".join(map(str, PROBE_PORTS)))
-    sub.add_parser("info", help="status + $I + $G + $$ (read-only)")
+    sub.add_parser("info", help="status + $I + $$ + FF F1/F2 device info (read-only)")
+    sub.add_parser("device", help="TOOCAA device info + status (FF F1 / FF F2) as JSON")
     p = sub.add_parser("status", help="one status report")
     p.add_argument("--watch", action="store_true")
     p = sub.add_parser("send", help="send one line (gated by safety tier)")
@@ -871,16 +996,20 @@ def main(argv=None) -> int:
             info = nova.info()
             print("transport:", nova.transport)
             print("status:   ", info["status"])
-            for k in ("build", "parser", "settings"):
+            for k in ("build", "settings"):
                 print("\n[%s]" % k)
                 for l in info[k]:
                     print("  " + l)
+            print("\n[device]")
+            print(json.dumps(nova.device(), indent=1, ensure_ascii=False))
             s = dict(l.split("=", 1) for l in info["settings"] if "=" in l)
             if s.get("$32") not in (None, "1"):
                 print("\n! $32 (laser mode) is %s – expected 1 on a laser" % s.get("$32"))
             if s.get("$130") and s.get("$131"):
                 print("\nmax travel X=%s Y=%s mm (NOVA spec %gx%g)" % (
                     s["$130"], s["$131"], *WORK_AREA_MM))
+        elif a.cmd == "device":
+            print(json.dumps(nova.device(), indent=1, ensure_ascii=False))
         elif a.cmd == "status":
             while True:
                 _print_status(nova.status())
@@ -888,9 +1017,12 @@ def main(argv=None) -> int:
                     break
                 time.sleep(0.5)
         elif a.cmd == "send":
-            for l in nova.command(a.line):
-                print(redact(l))
-            print("ok")
+            if a.line.strip().upper().startswith("FF "):
+                print(redact(nova.ff(a.line)))
+            else:
+                for l in nova.command(a.line):
+                    print(redact(l))
+                print("ok")
         elif a.cmd == "jog":
             ax = _parse_axes(a.axes)
             nova.jog(ax.get("x", 0.0), ax.get("y", 0.0), a.feed)

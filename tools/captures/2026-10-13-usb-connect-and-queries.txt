@@ -1,0 +1,89 @@
+# ToocaaLaser capture of TOOCAA Studio
+# 2026-10-13, TOOCAA NOVA firmware V1.0.2 (laser 20 W 0.9.2, air assist 0.9.4, rotary attached), USB, Chrome
+# page https://www.toocaastudio.com/  – Studio connected over Web Serial; the
+# block after 363 s was typed by hand (read-only queries only, nothing moved).
+# serial numbers masked (XXXXXXXX) inside the base64 FF F1 payload
+# format: <seconds> <TX|RX|WS|HTTP|NOTE|MARK> <data>; control bytes as \xHH
+   41.489s NOTE serial open {"baudRate":115200} {"usbProductId":29987,"usbVendorId":6790}  (0x1A86:0x7523 = CH340)
+   41.528s TX   FF F1
+   41.529s TX   FF R8
+   41.585s TX   FF F2
+   41.587s TX   $X
+   41.587s TX   \xc2\xa3  (Studio l2GetFirmware "£" = 0xA3, sent UTF-8 encoded)
+   41.595s RX    
+   41.596s RX   FF F1 eyJkYXRhIjp7ImFpckFzc2lzdCI6eyJTTiI6IlRDTlZIQVhYWFhYWFhYIiwiaGFyZHdhcmVfdmVyc2lvbiI6IjAuMC4wIiwiaXNPbmxpbmUiOnRydWUsIm1hbnVmYWN0dXJlRGF0ZSI6IjIwMjUtMTItMTUiLCJ2ZXJzaW9uIjoiMC45LjQifSwibGFzZXIiOnsiU04iOiJUQ05WRkFYWFhYWFhYWCIsImhhcmR3YXJlX3ZlcnNpb24iOiIwLjAuMCIsImlzT25saW5lIjp0cnVlLCJtYW51ZmFjdHVyZURhdGUiOiIyMDI1LTExLTI4IiwicG93ZXIiOjIwLCJ2ZXJzaW9uIjoiMC45LjIiLCJ3b3JrVGltZSI6MC41NjUyNzc4MTQ4NjUxMTIzfSwicm90YXJ5Ijp7ImlzT25saW5lIjp0cnVlfSwidG9vY2FhTm92YSI6eyJTTiI6IlRDTlZCQVhYWFhYWFhYIiwiaGFyZHdhcmVfdmVyc2lvbiI6InYwLjAuMCIsIm1hbnVmYWN0dXJlRGF0ZSI6IjIwMjUtMTItMTUiLCJ2ZXJzaW9uIjoiVjEuMC4yIn19fQ==
+   41.632s RX   FF R8 NOVA_CALIB_V1 method=none scheme=hg_gcode avg=0.0000000000,0.0000000000 struct=0.0000000000 ref=0.1000000000 center=148.5000000000,109.5000000000 cmValid=0 cm=1.0000000000,0.0000000000,0.0000000000,0.0000000000,1.0000000000,0.0000000000,0.0000000000,0.0000000000,1.0000000000 hgValid=0 hg=1.0000000000,0.0000000000,0.0000000000,0.0000000000,1.0000000000,0.0000000000,0.0000000000,0.0000000000,1.0000000000
+   41.666s RX   FF F2 eyJhaXJQdW1wU3RhdGUiOjEsImFsYXJtIjoiTk9ORSIsImNvbnN1bWFibGVzIjp7Imxhc2VyTGVucyI6eyJ3ZWFyVGltZSI6MTI2NX0sIm1hY2hpbmVGaWx0ZXIiOnsid2VhclRpbWUiOjEyNjV9LCJzbW9rZVB1cmlmaWVyIjp7ImFkZGVkIjpmYWxzZSwid2VhclRpbWUiOjB9fSwiY292ZXJQbGF0ZVN0YXRlIjowLCJncmJsU3RhdGUiOjAsImluZXRyYWN0TW9kZSI6MCwibGFzZXJUZW1wZXJhdHVyZSI6MjguMCwicm90YXRpb25QYXJ0U3RhdGUiOjEsInVzYkNvbm5lY3RTdGF0ZSI6MSwid29ya1N0YXRlIjowfQ==
+   41.672s RX   ok
+   42.451s TX   \xa5  (Studio sendCommand("0xA5", HEX) = TOOCAA L2 "get laser power")
+   42.473s RX   ok
+  231.362s RX   FF LD 1
+  231.400s MARK ──── lid opened (unprompted) ────
+  246.862s RX   FF LD 0
+  363.600s MARK ──── read-only queries sent by hand ────
+  363.680s TX   ?  ⟨real-time⟩
+  363.703s RX   <Idle|MPos:6.170,210.000,5.000,305.178|FS:0,0|Pn:XY|WCO:6.170,0.000,0.000,0.000>
+  363.703s RX   ok
+  364.482s TX   $I
+  364.508s RX   [VER:1.3a.202506201830:]
+  364.510s RX   [OPT:PHBW]
+  364.512s RX   [MSG:Using machine:ESP32_V4]
+  364.512s RX   ok
+  365.983s TX   $G
+  366.012s RX   error:3
+  367.485s TX   $#
+  367.497s RX   error:1
+  368.987s TX   $$
+  369.008s RX   $0=3
+  369.009s RX   $1=250
+  369.010s RX   $2=0
+  369.011s RX   $3=0
+  369.012s RX   $4=0
+  369.013s RX   $5=0
+  369.014s RX   $6=0
+  369.015s RX   $10=1
+  369.016s RX   $11=0.010
+  369.017s RX   $12=0.002
+  369.018s RX   $13=0
+  369.019s RX   $20=0
+  369.020s RX   $21=0
+  369.021s RX   $22=0
+  369.022s RX   $23=3
+  369.023s RX   $24=200.000
+  369.024s RX   $25=2000.000
+  369.025s RX   $26=500.000
+  369.026s RX   $27=3.000
+  369.027s RX   $30=1000.000
+  369.028s RX   $31=0.000
+  369.029s RX   $32=1
+  369.030s RX   $32=1
+  369.031s RX   $100=100.000
+  369.032s RX   $101=100.000
+  369.033s RX   $102=100.000
+  369.034s RX   $103=45.000
+  369.035s RX   $104=100.000
+  369.036s RX   $105=100.000
+  369.037s RX   $110=36000.000
+  369.038s RX   $111=36000.000
+  369.039s RX   $112=36000.000
+  369.040s RX   $113=6000.000
+  369.041s RX   $114=36000.000
+  369.042s RX   $115=36000.000
+  369.043s RX   $120=5000.000
+  369.044s RX   $121=5000.000
+  369.045s RX   $122=1000.000
+  369.046s RX   $123=500.000
+  369.047s RX   $124=3000.000
+  369.048s RX   $125=3000.000
+  369.049s RX   $130=300.000
+  369.050s RX   $131=220.000
+  369.051s RX   $132=300.000
+  369.052s RX   $133=300.000
+  369.053s RX   $134=300.000
+  369.054s RX   $135=300.000
+  369.059s RX   ok
+  370.489s TX   FF F2
+  370.531s RX   FF F2 eyJhaXJQdW1wU3RhdGUiOjEsImFsYXJtIjoiTk9ORSIsImNvbnN1bWFibGVzIjp7Imxhc2VyTGVucyI6eyJ3ZWFyVGltZSI6MTI2NX0sIm1hY2hpbmVGaWx0ZXIiOnsid2VhclRpbWUiOjEyNjV9LCJzbW9rZVB1cmlmaWVyIjp7ImFkZGVkIjpmYWxzZSwid2VhclRpbWUiOjB9fSwiY292ZXJQbGF0ZVN0YXRlIjowLCJncmJsU3RhdGUiOjAsImluZXRyYWN0TW9kZSI6MiwibGFzZXJUZW1wZXJhdHVyZSI6MjguMCwicm90YXRpb25QYXJ0U3RhdGUiOjEsInVzYkNvbm5lY3RTdGF0ZSI6MSwid29ya1N0YXRlIjowfQ==
+  371.991s TX   ?  ⟨real-time⟩
+  372.013s RX   <Idle|MPos:6.170,210.000,5.000,305.178|FS:0,0|Pn:XY|Ov:100,100,100>
+  372.013s RX   ok

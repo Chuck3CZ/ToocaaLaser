@@ -8,11 +8,15 @@ Summarise a TOOCAA Studio capture made with studio-sniffer.js.
 Report: duration and counts, every distinct command type Studio sent (FF xx,
 $-commands, M/G codes, real-time bytes) with the replies that followed it,
 status-report fields, the markers you set, and lines nobody recognises.
+TOOCAA `FF F1` / `FF F2` replies are decoded from base64 JSON (serial numbers
+masked), and the NOVA's extra `ok` after a `?` status report is flagged.
 """
 from __future__ import annotations
 
 import argparse
+import base64
 import collections
+import json
 import re
 import sys
 
@@ -28,8 +32,27 @@ def parse(path):
     return out
 
 
+def decode_ff(line: str):
+    """`FF F1 <b64>` / `FF F2 <b64>` -> dict with serial numbers masked, else None."""
+    parts = line.split(None, 2)
+    if len(parts) < 3 or parts[0] != "FF" or parts[1] not in ("F1", "F2"):
+        return None
+    try:
+        obj = json.loads(base64.b64decode(parts[2]).decode("utf-8"))
+    except ValueError:
+        return None
+
+    def mask(o):
+        if isinstance(o, dict):
+            return {k: (str(v)[:6] + "…" if k == "SN" and v else mask(v)) for k, v in o.items()}
+        return [mask(v) for v in o] if isinstance(o, list) else o
+    return mask(obj)
+
+
 def kind(cmd: str) -> str:
     c = cmd.strip()
+    if re.match(r"^\\x[0-9a-f]{2}", c):
+        return "BYTE " + re.sub(r"\s.*", "", c)
     if "⟨real-time⟩" in c:
         return "RT " + c.split()[0]
     if c.startswith("FF "):
@@ -94,9 +117,30 @@ def main(argv=None) -> int:
                 fields[p.split(":")[0]] += 1
     print("  states:", dict(states))
     print("  fields:", dict(fields))
+    axes = {len(s.split("MPos:")[1].split("|")[0].split(",")) for _, s in rx if "MPos:" in s}
+    if axes:
+        print("  MPos axes:", sorted(axes))
+    rxl = [s for _, s in rx]
+    after = [rxl[i + 1] for i, s in enumerate(rxl[:-1]) if s.startswith("<") and s.endswith(">")]
+    if after:
+        n_ok = sum(1 for s in after if s == "ok")
+        print(f"  line after a status report is `ok` in {n_ok}/{len(after)} cases"
+              + ("  ← NOVA quirk: `?` gets an extra ok" if n_ok and n_ok == len(after) else ""))
+
+    decoded = [(t, s) for t, s in rx if decode_ff(s) is not None]
+    if decoded:
+        print("\n## TOOCAA FF F1 / FF F2 payloads (base64 JSON, decoded)")
+        last = {}
+        for t, s in decoded:
+            last[s.split()[1]] = (t, decode_ff(s))
+        for k, (t, obj) in sorted(last.items()):
+            print(f"  FF {k} (last, {t:.3f}s):")
+            for ln in json.dumps(obj, indent=2, ensure_ascii=False).splitlines():
+                print("    " + ln)
 
     print("\n## replies Studio got that are not ok / status (distinct)")
-    seen = collections.Counter(s for _, s in rx if s != "ok" and not s.startswith("<"))
+    seen = collections.Counter((s[:6] + "<base64 JSON, decoded above>") if decode_ff(s) is not None else s
+                               for _, s in rx if s != "ok" and not s.startswith("<"))
     for s, n in seen.most_common(60):
         print(f"  ×{n:<4} {s[:120]}")
 

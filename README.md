@@ -44,16 +44,23 @@ proprietary. TOOCAA's extras came from the official
 [`toocaa_nova.lbdev`](https://wiki.toocaa.com/toocaa_nova.lbdev) and the
 public TOOCAA Studio code. Details and sources: **[PROTOCOL.md](PROTOCOL.md)**.
 
+**Checked on a real NOVA over USB (firmware V1.0.2):** `$I`, `$$`, `?`, `FF F1`
+and `FF F2` behave as described. The NOVA differs from stock Grbl in a few
+ways: `?` also returns an `ok`, `FF` commands return no `ok`, and `$G`/`$#`
+aren't supported. Both clients handle this (PROTOCOL.md §7).
+
 ## What's in here
 
 | File | What it is |
 |---|---|
 | [`index.html`](index.html) | **The web app** (single file, no build step). A design editor (several objects, drag/resize/rotate, copy/paste/duplicate, grid arrays, undo/redo, text, shapes, SVG, PNG/JPG with dithering, line and fill engraving, material presets, projects) plus machine control: USB over Web Serial, Wi-Fi via the bridge, built-in simulator, check mode, frame, streaming, jog, autofocus, air assist, console, `.lbdev` audit. CZ/EN. |
-| [`nova.py`](nova.py) | Python library + CLI: `probe`, `info`, `status`, `jog`, `home`, `unlock`, `check`, `run`, `hold`, `resume`, `stop` |
+| [`nova.py`](nova.py) | Python library + CLI: `probe`, `info`, `device` (decoded `FF F1`/`FF F2`), `status`, `jog`, `home`, `unlock`, `check`, `run`, `hold`, `resume`, `stop` |
 | [`bridge.py`](bridge.py) | Localhost bridge (WebSocket ↔ NOVA over Wi-Fi/USB) that also serves the web app offline |
 | [`PROTOCOL.md`](PROTOCOL.md) | Everything known about the NOVA protocol (USB, Wi-Fi 8002, `FF` commands, profile) with sources |
 | [`lbdev_audit.py`](lbdev_audit.py) | **Read-only** audit of `toocaa_nova.lbdev` (JSON/XML; finds macros including base64-encoded ones) |
-| [`grbl_sim.py`](grbl_sim.py) | NOVA simulator (Grbl_ESP32 1.3a, A4 bed, soft limits, check mode, alarms) |
+| [`grbl_sim.py`](grbl_sim.py) | NOVA simulator (Grbl_ESP32 1.3a, A4 bed, soft limits, check mode, alarms). Mimics the real NOVA: `$$` from a real machine, extra `ok` after `?`, `FF F1`/`FF F2`. `--stock-grbl` turns that off |
+| [`tools/studio-sniffer.js`](tools/studio-sniffer.js), [`tools/sniff_analyze.py`](tools/sniff_analyze.py) | Read-only recorder of TOOCAA Studio ↔ NOVA traffic, and its analyser (decodes `FF F1`/`FF F2`, flags quirks) |
+| [`tools/captures/`](tools/captures/) | Real recordings from a NOVA (serial numbers masked) |
 | [`test_toocaa_laser.py`](test_toocaa_laser.py) | End-to-end tests against the simulator (`python3 -m unittest -v`) |
 
 Python 3.9+ with the standard library only. USB from Python needs `pip install pyserial`.
@@ -89,7 +96,7 @@ Python 3.9+ with the standard library only. USB from Python needs `pip install p
 These rules hold in both the web app and `nova.py`. The machine's own
 protections are never bypassed.
 
-- **Read-only by default.** Only query commands are sent (`?`, `$I`, `$$`, `$G`…).
+- **Read-only by default.** Only query commands are sent (`?`, `$I`, `$$`, `FF F1`/`FF F2`…).
 - **Motion** (`$J=` jog, `$H`, `$X`, frame, job) needs *Allow motion*. A jog
   never fires the laser.
 - A **job that turns the beam on** (M3/M4 with S>0) also needs *Allow laser*.

@@ -43,16 +43,24 @@ TOOCAA pocházejí z oficiálního
 [`toocaa_nova.lbdev`](https://wiki.toocaa.com/toocaa_nova.lbdev) a z veřejného
 kódu TOOCAA Studia. Podrobnosti a zdroje: **[PROTOCOL.md](PROTOCOL.md)**.
 
+**Ověřeno na skutečné NOVĚ přes USB (firmware V1.0.2):** `$I`, `$$`, `?`,
+`FF F1` a `FF F2` se chovají tak, jak je popsáno. Od standardního Grbl se
+NOVA v několika věcech liší: `?` vrací navíc `ok`, příkazy `FF` žádné `ok`
+nevracejí a `$G`/`$#` nejsou podporované. Oba klienti to zvládají
+(PROTOCOL.md §7).
+
 ## Co tu je
 
 | Soubor | Co to je |
 |---|---|
 | [`index.html`](index.html) | **Webová aplikace** (jediný soubor, bez buildu). Editor motivů (více objektů, posun/zvětšení/otáčení myší, kopírovat/vložit/duplikovat, kopie do mřížky, zpět/znovu, text, tvary, SVG, PNG/JPG s rozptylem, gravírování obrysu i výplně, předvolby materiálů, projekty) a ovládání stroje: USB přes Web Serial, Wi-Fi přes most, simulátor, ověření, rámeček, odeslání, posun, autofokus, vzduch, konzole, audit `.lbdev`. CZ/EN. |
-| [`nova.py`](nova.py) | Knihovna + CLI v Pythonu: `probe`, `info`, `status`, `jog`, `home`, `unlock`, `check`, `run`, `hold`, `resume`, `stop` |
+| [`nova.py`](nova.py) | Knihovna + CLI v Pythonu: `probe`, `info`, `device` (dekódované `FF F1`/`FF F2`), `status`, `jog`, `home`, `unlock`, `check`, `run`, `hold`, `resume`, `stop` |
 | [`bridge.py`](bridge.py) | Lokální most (WebSocket ↔ NOVA přes Wi-Fi/USB), který zároveň servíruje aplikaci offline |
 | [`PROTOCOL.md`](PROTOCOL.md) | Vše, co víme o protokolu NOVA (USB, Wi-Fi 8002, příkazy `FF`, profil), se zdroji |
 | [`lbdev_audit.py`](lbdev_audit.py) | Audit souboru `toocaa_nova.lbdev` **jen pro čtení** (JSON/XML, najde i makra kódovaná v base64) |
-| [`grbl_sim.py`](grbl_sim.py) | Simulátor NOVA (Grbl_ESP32 1.3a, plocha A4, soft limity, check mód, alarmy) |
+| [`grbl_sim.py`](grbl_sim.py) | Simulátor NOVA (Grbl_ESP32 1.3a, plocha A4, soft limity, check mód, alarmy). Chová se jako skutečná NOVA: `$$` ze skutečného stroje, extra `ok` po `?`, `FF F1`/`FF F2`. `--stock-grbl` to vypne |
+| [`tools/studio-sniffer.js`](tools/studio-sniffer.js), [`tools/sniff_analyze.py`](tools/sniff_analyze.py) | Záznamník komunikace TOOCAA Studio ↔ NOVA (jen čte) a jeho analyzátor (dekóduje `FF F1`/`FF F2`, upozorní na odchylky) |
+| [`tools/captures/`](tools/captures/) | Skutečné záznamy z NOVY (sériová čísla skrytá) |
 | [`test_toocaa_laser.py`](test_toocaa_laser.py) | End-to-end testy proti simulátoru (`python3 -m unittest -v`) |
 
 Stačí Python 3.9+ se standardní knihovnou. Pro USB z Pythonu je potřeba `pip install pyserial`.
@@ -87,7 +95,7 @@ Stačí Python 3.9+ se standardní knihovnou. Pro USB z Pythonu je potřeba `pip
 
 Platí pro webovou aplikaci i `nova.py`. Ochrany stroje se nikdy neobcházejí.
 
-- **Výchozí stav je jen čtení.** Posílají se jen dotazy (`?`, `$I`, `$$`, `$G`…).
+- **Výchozí stav je jen čtení.** Posílají se jen dotazy (`?`, `$I`, `$$`, `FF F1`/`FF F2`…).
 - **Pohyb** (posun `$J=`, `$H`, `$X`, rámeček, úloha) vyžaduje *Povolit pohyb*.
   Posun nikdy nezapne laser.
 - **Úloha, která zapíná paprsek** (M3/M4 s S>0), navíc vyžaduje *Povolit laser*.
