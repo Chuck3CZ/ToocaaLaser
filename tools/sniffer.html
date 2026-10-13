@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Studio Sniffer</title>
+<meta name="description" content="Record what TOOCAA Studio sends to the TOOCAA NOVA, so ToocaaLaser can speak the same protocol.">
+<style>
+:root{--bg:#f4f5f7;--panel:#fff;--fg:#14171c;--mut:#5d6573;--line:#dde1e7;--field:#f3f4f6;--acc:#2457d6;--acc-fg:#fff;--warn:#a15c07}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#0e1116;--panel:#171b22;--fg:#e7eaf0;--mut:#9aa3b2;--line:#29303b;--field:#11151b;--acc:#5b8cff;--acc-fg:#08142e;--warn:#f0a73a}}
+:root[data-theme="dark"]{--bg:#0e1116;--panel:#171b22;--fg:#e7eaf0;--mut:#9aa3b2;--line:#29303b;--field:#11151b;--acc:#5b8cff;--acc-fg:#08142e;--warn:#f0a73a}
+*{box-sizing:border-box}html,body{margin:0;background:var(--bg);color:var(--fg)}
+body{font:15px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;padding:24px 16px 48px}
+main{max-width:780px;margin:0 auto;display:grid;gap:16px}
+h1{font-size:22px;margin:0}h2{font-size:15px;margin:0 0 8px}
+section{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px}
+p{margin:6px 0}.mut{color:var(--mut)}.warn{color:var(--warn)}
+ol{margin:6px 0;padding-left:22px}li{margin:6px 0}
+code,pre{font:13px/1.45 ui-monospace,Menlo,Consolas,monospace}
+pre{background:var(--field);border:1px solid var(--line);border-radius:8px;padding:10px;white-space:pre-wrap;word-break:break-all;margin:8px 0}
+button{font:inherit;background:var(--acc);color:var(--acc-fg);border:0;border-radius:8px;padding:8px 14px;cursor:pointer;font-weight:600}
+a{color:var(--acc)}
+kbd{font:12px ui-monospace,monospace;border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:1px 5px;background:var(--field)}
+</style>
+</head>
+<body>
+<main>
+  <div>
+    <h1>Studio Sniffer</h1>
+    <p class="mut">Nahraje, co TOOCAA Studio posílá do NOVA a co mu stroj odpovídá – abychom v ToocaaLaser mluvili stejně. Data jen čte a propouští beze změny, nic nikam neodesílá. · <a href="../">← ToocaaLaser</a></p>
+  </div>
+
+  <section>
+    <h2>1. Příprava (Mac i Windows, Chrome)</h2>
+    <ol>
+      <li>Otevři <a href="https://www.toocaastudio.com/" target="_blank" rel="noopener">toocaastudio.com</a>. Pokud je NOVA připojená, v Studiu ji <b>odpoj</b> (jinak se po obnovení stránky připojí dřív, než se sniffer spustí).</li>
+      <li>Obnov stránku (<kbd>⌘</kbd> <kbd>R</kbd> / <kbd>Ctrl</kbd> <kbd>R</kbd>) a otevři konzoli: Mac <kbd>⌘</kbd> <kbd>⌥</kbd> <kbd>J</kbd>, Windows <kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>J</kbd>.</li>
+      <li>Vlož tenhle řádek a dej <kbd>Enter</kbd>. Chrome napoprvé chce, abys napsal <code>allow pasting</code> – napiš to a vlož znovu.
+        <pre id="cmd">import('https://chuck3cz.github.io/ToocaaLaser/tools/studio-sniffer.js')</pre>
+        <button id="copy">Zkopírovat</button> <span id="ok" class="mut"></span></li>
+      <li>Vpravo dole se objeví černý panel <b>ToocaaLaser sniffer</b>. Teď v Studiu <b>připoj NOVA</b> (USB nebo Wi-Fi).</li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>2. Nahrávání</h2>
+    <p>Před každou akcí napiš do panelu krátkou poznámku a klikni <b>Mark</b> – v záznamu pak přesně vím, co k čemu patří. Doporučené pořadí:</p>
+    <ol>
+      <li>Jen připojení a pár vteřin čekání (identita, stav).</li>
+      <li>Home, posun šipkami, <b>autofokus</b>, <b>vzduch zap./vyp.</b>, <b>zaměřovací kříž / červený bod</b>.</li>
+      <li>Fotka z kamery, rámeček (framing).</li>
+      <li>Malá úloha: čtverec 10 × 10 mm na kraftovém papíře – obrys a pak výplň.</li>
+      <li>Pauza, pokračování a zastavení úlohy.</li>
+    </ol>
+    <p class="mut">Zaškrtnutí „hide status polling“ jen skryje opakované dotazy na stav v panelu, v souboru jsou celé.</p>
+  </section>
+
+  <section>
+    <h2>3. Uložení a předání</h2>
+    <ol>
+      <li>Klikni <b>Download log</b> → stáhne se <code>studio-capture-….txt</code>. U Wi-Fi úloh se objeví i tlačítka <b>⬇ upload</b> s přesným souborem, který Studio poslalo stroji.</li>
+      <li>Soubor mi pošli sem do chatu, nebo ho nahraj do repozitáře do složky <code>captures/</code>.</li>
+    </ol>
+    <p class="warn">Hesla k Wi-Fi sniffer automaticky maskuje. Záznam ale může obsahovat sériové číslo stroje – repozitář je veřejný, tak si ho před nahráním projdi.</p>
+  </section>
+
+  <section>
+    <h2>Pro opakované použití: Tampermonkey</h2>
+    <p class="mut">S doplňkem <a href="https://www.tampermonkey.net/" target="_blank" rel="noopener">Tampermonkey</a> se sniffer spustí sám už při načtení Studia (i když se Studio připojí automaticky): <a href="studio-sniffer.js">studio-sniffer.js</a> → Tampermonkey → nový skript → vložit obsah.</p>
+    <p class="mut">Rozbor záznamu: <code>python3 tools/sniff_analyze.py studio-capture-….txt</code></p>
+  </section>
+</main>
+<script>
+document.getElementById('copy').addEventListener('click', async () => {
+  const t = document.getElementById('cmd').textContent, ok = document.getElementById('ok');
+  try { await navigator.clipboard.writeText(t); ok.textContent = 'zkopírováno'; }
+  catch { const r = document.createRange(); r.selectNodeContents(document.getElementById('cmd')); const s = getSelection(); s.removeAllRanges(); s.addRange(r); ok.textContent = 'označeno – ⌘C / Ctrl+C'; }
+});
+</script>
+</body>
+</html>
