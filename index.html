@@ -254,15 +254,20 @@ details summary{cursor:pointer;color:var(--mut);font-size:12.5px}
     <div class="row">
       <select id="linkType" class="grow">
         <option value="usb" data-i18n="usb">USB (Web Serial, Chrome/Edge)</option>
-        <option value="wifi" data-i18n="wifi">Wi-Fi via local bridge</option>
+        <option value="wifiext" data-i18n="wifiext">Wi-Fi (browser extension)</option>
+        <option value="wifi" data-i18n="wifi">Wi-Fi via local bridge (Python)</option>
         <option value="sim" data-i18n="sim">Simulator (no machine)</option>
       </select>
       <button id="btnConnect" class="primary" data-i18n="connect">Connect</button>
+    </div>
+    <div class="row hidden" id="ipRow">
+      <input type="text" id="novaIp" class="grow" placeholder="NOVA IP, e.g. 192.168.1.50" autocomplete="off" spellcheck="false" aria-label="NOVA IP">
     </div>
     <div class="row hidden" id="bridgeRow">
       <input type="url" id="bridgeUrl" class="grow" value="ws://localhost:8765" aria-label="bridge URL">
     </div>
     <p class="note" id="connNote"></p>
+    <p class="note hidden" id="extLink"><a href="extension/" target="_blank" rel="noopener">ToocaaLaser Connect – install / instalace →</a></p>
   </section>
 
   <section>
@@ -365,7 +370,11 @@ const T = {
     h_job: 'Job', origin: 'Machine origin', origin_fl: 'Front-left (Y up)', origin_rl: 'Rear-left (TOOCAA profile)', air: 'Air assist (M8/M9)',
     check: 'Check (no motion)', frame: 'Frame (laser off)', run: 'Start job', pause: 'Pause', resume: 'Resume', download: 'Download .gcode',
     h_lbdev: 'LightBurn profile audit (.lbdev)', open_lbdev: 'Open toocaa_nova.lbdev…', lbdev_note: 'Read in your browser only – nothing is uploaded.',
-    h_conn: 'Connection', usb: 'USB (Web Serial, Chrome/Edge)', wifi: 'Wi-Fi via local bridge', sim: 'Simulator (no machine)', connect: 'Connect', disconnect: 'Disconnect',
+    wifiext: 'Wi-Fi (browser extension)', ip_missing: 'Enter the NOVA IP address (shown on its touchscreen under Settings → Wi-Fi).',
+    no_ext: 'No connection extension found. Install “ToocaaLaser Connect” (see the link below) and reload this page.',
+    confirm_screen: 'Tap “Confirm” on the NOVA touchscreen…',
+    note_wifiext: 'Needs the small “ToocaaLaser Connect” extension for Chrome/Edge (an https page may not open local addresses by itself). Enter the IP shown on the NOVA, connect, then tap Confirm on its screen.',
+    h_conn: 'Connection', usb: 'USB (Web Serial, Chrome/Edge)', wifi: 'Wi-Fi via local bridge (Python)', sim: 'Simulator (no machine)', connect: 'Connect', disconnect: 'Disconnect',
     h_status: 'Machine', laser: 'Laser', airk: 'Air', h_safety: 'Safety',
     allow_motion: 'Allow motion (jog, home, frame, job)', allow_laser: 'Allow laser (jobs that switch the beam on)',
     safety_note: "Both reset on every connect. Settings ($n=…) are never sent. The machine's lid interlock, flame and tilt sensors always stay in charge; STOP / Esc = feed hold + soft reset.",
@@ -410,7 +419,11 @@ const T = {
     h_job: 'Úloha', origin: 'Počátek stroje', origin_fl: 'Vpředu vlevo (Y nahoru)', origin_rl: 'Vzadu vlevo (profil TOOCAA)', air: 'Vzduch (M8/M9)',
     check: 'Ověřit (bez pohybu)', frame: 'Rámeček (laser vyp.)', run: 'Spustit úlohu', pause: 'Pauza', resume: 'Pokračovat', download: 'Stáhnout .gcode',
     h_lbdev: 'Audit profilu LightBurn (.lbdev)', open_lbdev: 'Otevřít toocaa_nova.lbdev…', lbdev_note: 'Čte se jen v prohlížeči – nic se nikam neposílá.',
-    h_conn: 'Připojení', usb: 'USB (Web Serial, Chrome/Edge)', wifi: 'Wi-Fi přes lokální most', sim: 'Simulátor (bez stroje)', connect: 'Připojit', disconnect: 'Odpojit',
+    wifiext: 'Wi-Fi (rozšíření prohlížeče)', ip_missing: 'Zadej IP adresu NOVA (najdeš ji na displeji v Nastavení → Wi-Fi).',
+    no_ext: 'Nenašel jsem rozšíření pro připojení. Nainstaluj „ToocaaLaser Connect“ (odkaz níže) a obnov stránku.',
+    confirm_screen: 'Potvrď připojení na displeji NOVA (Confirm)…',
+    note_wifiext: 'Potřebuje malé rozšíření „ToocaaLaser Connect“ pro Chrome/Edge (stránka přes https sama do domácí sítě nesmí). Zadej IP z displeje NOVA, připoj a na displeji potvrď.',
+    h_conn: 'Připojení', usb: 'USB (Web Serial, Chrome/Edge)', wifi: 'Wi-Fi přes lokální most (Python)', sim: 'Simulátor (bez stroje)', connect: 'Připojit', disconnect: 'Odpojit',
     h_status: 'Stroj', laser: 'Laser', airk: 'Vzduch', h_safety: 'Bezpečnost',
     allow_motion: 'Povolit pohyb (posun, home, rámeček, úloha)', allow_laser: 'Povolit laser (úlohy se zapnutým paprskem)',
     safety_note: 'Obojí se vypne při každém připojení. Nastavení ($n=…) se nikdy neposílá. Blokování víka, čidla plamene a náklonu ve stroji mají vždy přednost; STOP / Esc = pozastavení + soft reset.',
@@ -533,6 +546,80 @@ class WsLink {
   }
   async write(s) { this.ws.send(latin1(s)); }
   async close() { this.closed = true; this.ws.close(); }
+}
+
+// Wi-Fi straight to the NOVA (ws://IP:8002/ws + HTTP API) through a browser
+// extension: ours (ToocaaLaser Connect) or TOOCAA's own TOOCAA Connect – both
+// speak the same message protocol. Flow copied from TOOCAA Studio:
+// GET /info → GET /v1/ipComfirm (tap Confirm on the touchscreen) →
+// GET /v1/deviceInfo → WebSocket.
+const EXT_IDS = [['ljecpkbhoddddkkfhblfijonoigkjinh', 'ToocaaLaser Connect'], ['pmfbjhppbodfpmffhmjoajbhekeoelbm', 'TOOCAA Connect']];
+const NOVA_PORT = 8002;
+class ExtLink {
+  constructor(ip, logFn) { this.ip = ip; this.say = logFn || (() => {}); this.cid = Math.random().toString(36).slice(2, 12); }
+  send(msg, timeout = 15000) {
+    return new Promise((res, rej) => {
+      const to = setTimeout(() => rej(new Error('extension did not answer')), timeout);
+      try {
+        chrome.runtime.sendMessage(this.ext, msg, r => {
+          clearTimeout(to);
+          const e = chrome.runtime.lastError;
+          e ? rej(new Error(e.message)) : res(r);
+        });
+      } catch (e) { clearTimeout(to); rej(e); }
+    });
+  }
+  async http(path, timeout) {
+    const r = await this.send({requestType: 'http-fetch', url: `http://${this.ip}:${NOVA_PORT}${path}`, fetchOptions: {method: 'GET'}, timeout}, timeout + 2000);
+    if (!r || r.success === false || r.error) throw new Error(`${path}: ${(r && r.error) || 'no reply'}`);
+    return r.data;
+  }
+  async open() {
+    if (!/^[\w.-]+$/.test(this.ip)) throw new Error(t('ip_missing'));
+    if (!(window.chrome && chrome.runtime && chrome.runtime.sendMessage)) throw new Error(t('no_ext'));
+    let lastErr = null;
+    for (const [id, name] of EXT_IDS) {       // first extension that answers wins
+      this.ext = id;
+      try { await this.http('/info', 5000); this.say(`${name}: NOVA ${this.ip} found`, 'ok'); lastErr = null; break; }
+      catch (e) { lastErr = e; if (!/Receiving end does not exist|Could not establish/i.test(e.message)) break; }
+    }
+    if (lastErr) throw /Receiving end|Could not establish/i.test(lastErr.message) ? new Error(t('no_ext')) : new Error(`NOVA ${this.ip}: ${lastErr.message}`);
+    this.say(t('confirm_screen'), 'msg');
+    const c = await this.http('/v1/ipComfirm', 90000);
+    if (c && c.code !== undefined && +c.code !== 200) throw new Error('NOVA refused the connection: ' + JSON.stringify(c));
+    try { this.say('deviceInfo: ' + JSON.stringify(await this.http('/v1/deviceInfo', 8000)).slice(0, 300), 'sys'); } catch {}
+    await new Promise((res, rej) => {
+      this.port = chrome.runtime.connect(this.ext, {name: 'toocaa-page'});
+      const to = setTimeout(() => rej(new Error('WebSocket did not open')), 10000);
+      this.port.onMessage.addListener(m => {
+        if (!m || m.connectionId !== this.cid) return;
+        if (m.type === 'ws-opened') { clearTimeout(to); res(); }
+        else if (m.type === 'ws-message') { const d = String(m.data); this.onData(/\n$/.test(d) ? d : d + '\n'); }
+        else if (m.type === 'ws-error' && !this.opened) { clearTimeout(to); rej(new Error(m.error || 'WebSocket error')); }
+        else if (m.type === 'ws-closed' && !this.closed) this.onClose(new Error('NOVA closed the WebSocket'));
+      });
+      this.port.onDisconnect.addListener(() => { if (!this.closed) this.onClose(new Error('extension disconnected')); });
+      this.port.postMessage({type: 'ws-open', url: `ws://${this.ip}:${NOVA_PORT}/ws?clientId=${this.cid}`, connectionId: this.cid});
+    });
+    this.opened = true;
+    this.keep = setInterval(() => { try { this.port.postMessage({type: 'keepalive'}); } catch {} }, 20000);
+  }
+  // one command per WebSocket message, like TOOCAA Studio; real-time bytes alone
+  async write(s) {
+    let line = '';
+    const flush = () => { if (line) this.port.postMessage({type: 'ws-send', connectionId: this.cid, data: line + '\n'}); line = ''; };
+    for (const ch of s) {
+      if ('?!~\x18\x85'.includes(ch) && !line) this.port.postMessage({type: 'ws-send', connectionId: this.cid, data: ch});
+      else if (ch === '\n') flush();
+      else line += ch;
+    }
+    flush();
+  }
+  async close() {
+    this.closed = true; clearInterval(this.keep);
+    try { this.port.postMessage({type: 'ws-close', connectionId: this.cid}); } catch {}
+    try { this.port.disconnect(); } catch {}
+  }
 }
 
 // Grbl_ESP32 1.3a simulator (same behaviour as grbl_sim.py, plus motion timing)
@@ -831,14 +918,18 @@ function refreshButtons() {
 function updateConnNote() {
   const v = $('#linkType').value;
   $('#bridgeRow').classList.toggle('hidden', v !== 'wifi');
+  $('#ipRow').classList.toggle('hidden', v !== 'wifiext');
   $('#connNote').textContent = t('note_' + v);
+  $('#extLink').classList.toggle('hidden', v !== 'wifiext');
 }
 
 // ---------------------------------------------------------------- connection
 async function connect() {
   if (app.link) return disconnect();
   const type = $('#linkType').value;
-  const link = type === 'usb' ? new SerialLink() : type === 'wifi' ? new WsLink($('#bridgeUrl').value.trim()) : new SimLink((a, b) => addBurn(a, b));
+  if (type === 'wifiext') { try { localStorage.setItem('tl-ip', $('#novaIp').value.trim()); } catch {} }
+  const link = type === 'usb' ? new SerialLink() : type === 'wifi' ? new WsLink($('#bridgeUrl').value.trim())
+    : type === 'wifiext' ? new ExtLink($('#novaIp').value.trim(), log) : new SimLink((a, b) => addBurn(a, b));
   link.onClose = e => { log('connection lost: ' + errText(e), 'bad'); disconnect(); };
   try { await link.open(); } catch (e) { log(errText(e), 'bad'); return; }
   app.link = link; app.exactBurn = type === 'sim'; app.settings = {}; app.burns = []; app.lastHead = null;
@@ -2087,6 +2178,7 @@ $('#btnClear').addEventListener('click', () => { $('#log').textContent = ''; });
 
 // start
 if (!('serial' in navigator)) $('#linkType').value = 'sim';
+try { $('#novaIp').value = localStorage.getItem('tl-ip') || ''; } catch {}
 try { const m = localStorage.getItem('tl-module'); if (m && MATERIALS[m] !== undefined || m === '2') $('#module').value = m; } catch {}
 applyLang(); syncProps(); renderObjList(); refreshButtons(); draw();
 (async () => {

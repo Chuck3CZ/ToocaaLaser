@@ -317,6 +317,35 @@ class WsTransport:
         return self.url
 
 
+def nova_wifi_handshake(host: str, say=print, confirm_timeout: float = 90.0) -> None:
+    """What TOOCAA Studio does before opening the WebSocket: GET /info, then
+    GET /v1/ipComfirm – the NOVA shows a Confirm prompt on its touchscreen and
+    answers once it is tapped – then GET /v1/deviceInfo."""
+    import json
+    import urllib.request
+    base = "http://%s:%d" % (host, NOVA_WS_PORT)
+
+    def get(path, timeout):
+        with urllib.request.urlopen(base + path, timeout=timeout) as r:
+            body = r.read().decode("utf-8", "replace")
+        try:
+            return json.loads(body)
+        except ValueError:
+            return body
+    try:
+        get("/info", 5)
+    except OSError as e:
+        raise NovaError("NOVA not reachable at %s (%s)" % (base, e))
+    say("tap Confirm on the NOVA touchscreen…")
+    c = get("/v1/ipComfirm", confirm_timeout)
+    if isinstance(c, dict) and str(c.get("code", 200)) != "200":
+        raise NovaError("NOVA refused the connection: %s" % c)
+    try:
+        say("deviceInfo: %s" % json.dumps(get("/v1/deviceInfo", 8))[:300])
+    except OSError:
+        pass
+
+
 def nova_ws_url(host: str) -> str:
     return "ws://%s:%d/ws?clientId=%s" % (host, NOVA_WS_PORT, base64.b32encode(os.urandom(5)).decode().lower())
 
@@ -354,8 +383,9 @@ def open_transport(port: str, baud: int = DEFAULT_BAUD):
         port = port[4:]
     elif re.match(r"(?i)^(com\d+|/dev/)", port):
         return SerialTransport(port, baud)
-    elif ":" not in port:
-        return WsTransport(nova_ws_url(port))  # bare IP = NOVA Wi-Fi
+    elif ":" not in port:                      # bare IP = NOVA Wi-Fi
+        nova_wifi_handshake(port, say=lambda m: print(m, file=sys.stderr))
+        return WsTransport(nova_ws_url(port))
     host, _, p = port.rpartition(":") if port.count(":") == 1 else (port, "", "")
     return TcpTransport(host or port, int(p) if p else DEFAULT_TELNET_PORT)
 

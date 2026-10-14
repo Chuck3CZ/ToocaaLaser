@@ -58,6 +58,7 @@ aren't supported. Both clients handle this (PROTOCOL.md §7).
 | [`bridge.py`](bridge.py) | Localhost bridge (WebSocket ↔ NOVA over Wi-Fi/USB) that also serves the web app offline |
 | [`PROTOCOL.md`](PROTOCOL.md) | Everything known about the NOVA protocol (USB, Wi-Fi 8002, `FF` commands, profile) with sources |
 | [`lbdev_audit.py`](lbdev_audit.py) | **Read-only** audit of `toocaa_nova.lbdev` (JSON/XML; finds macros including base64-encoded ones) |
+| [`extension/`](extension/) | **ToocaaLaser Connect** browser extension (MV3): HTTP + WebSocket relay to the NOVA, local-network targets only |
 | [`grbl_sim.py`](grbl_sim.py) | NOVA simulator (Grbl_ESP32 1.3a, A4 bed, soft limits, check mode, alarms). Mimics the real NOVA: `$$` from a real machine, extra `ok` after `?`, `FF F1`/`FF F2`. `--stock-grbl` turns that off |
 | [`tools/studio-sniffer.js`](tools/studio-sniffer.js), [`tools/sniff_analyze.py`](tools/sniff_analyze.py) | Read-only recorder of TOOCAA Studio ↔ NOVA traffic, and its analyser (decodes `FF F1`/`FF F2`, flags quirks) |
 | [`tools/captures/`](tools/captures/) | Real recordings from a NOVA (serial numbers masked) |
@@ -84,7 +85,13 @@ Python 3.9+ with the standard library only. USB from Python needs `pip install p
 
 - **USB:** Chrome/Edge on a desktop computer, *Connect*, then pick the NOVA's port.
   Everything runs inside the browser.
-- **Wi-Fi:** run `python3 bridge.py --port <NOVA IP>` on your computer (it
+- **Wi-Fi (extension, recommended):** install the small
+  [ToocaaLaser Connect](https://chuck3cz.github.io/ToocaaLaser/extension/) extension
+  for Chrome/Edge (load unpacked, about a minute, no admin rights or Python needed).
+  In the app pick *Wi-Fi (browser extension)*, enter the NOVA's IP and tap
+  **Confirm** on its touchscreen. It does the same job as TOOCAA's "TOOCAA
+  Connect" extension, but it only relays to local-network addresses and only for this app.
+- **Wi-Fi (Python, optional):** run `python3 bridge.py --port <NOVA IP>` on your computer (it
   connects to the NOVA's WebSocket on port 8002, so confirm on the touchscreen) and pick
   *Wi-Fi via local bridge* in the app. An https page (GitHub Pages) can't open
   `ws://192.168.x.x` directly, but it can open `ws://localhost`. The bridge also

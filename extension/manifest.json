@@ -1,0 +1,24 @@
+{
+  "manifest_version": 3,
+  "name": "ToocaaLaser Connect",
+  "version": "1.0",
+  "description": "Lets the ToocaaLaser web app talk to a TOOCAA NOVA on your local network (HTTP + WebSocket). Local network addresses only.",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAzAL0FGScBlZv8LfhTn192d+nE/hgVcEPKQYYAXD1RAEyS6UgH8vLp72UIJQXF4/2INoCZoaQirNTM7G9oDNuKJn1qIklS19sSYK+y3YgJ5DAQkGh233Bs7vI1QUrIY5L9FCE1R4rLZfAVQ7CgLImkl/y4VdWgYxCpINHa0aME3G+a+G7Cv7/CzTCpMgFOYhI0B9JfNdCXs7p96dac1phpZ5hf261lwRu7tdlf3J4y3hk434b5wJqjhkFqzuHsXK6UwsAiyNzvZdp/fEtXazpuReNTixP0YtRBcDXQdbiFz/p3eGGb+/10DJGp7UTSifgkWScvNDSU58x9yFFWXHeFwIDAQAB",
+  "host_permissions": [
+    "http://*/*",
+    "ws://*/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "externally_connectable": {
+    "matches": [
+      "https://chuck3cz.github.io/ToocaaLaser/*",
+      "http://localhost/*",
+      "http://127.0.0.1/*"
+    ]
+  },
+  "icons": {
+    "128": "icon128.png"
+  }
+}

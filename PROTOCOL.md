@@ -61,6 +61,10 @@ reacts to messages the NOVA sends on its own.
   relays `fetch` (http-fetch), WebSocket (ws-open/send/close) and chunked
   uploads for pages on `*.toocaastudio.com`. ToocaaLaser's `bridge.py` does
   the same job.
+- **Connection sequence (Studio):** `GET http://IP:8002/info` (is it there?),
+  `GET /v1/ipComfirm` (the NOVA shows **Confirm** on its touchscreen and
+  answers `{"code":200}` once you tap it), `GET /v1/deviceInfo`, then the
+  WebSocket. ToocaaLaser (extension link, `nova.py`, `bridge.py`) does the same.
 - **WebSocket:** `ws://<NOVA-IP>:8002/ws?clientId=<random>`. Each command is
   one text message that ends in `\n`.
 - **HTTP on port 8002:** `GET /v1/deviceInfo` (accessories, details),

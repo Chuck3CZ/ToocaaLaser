@@ -377,6 +377,91 @@ class SimServer:
         self.sock.close()
 
 
+# --------------------------------------------------------------------------
+# Wi-Fi flavour: what TOOCAA Studio talks to on port 8002 (see PROTOCOL.md)
+# --------------------------------------------------------------------------
+
+def serve_wifi_client(m: Machine, conn: socket.socket, confirm_delay: float = 0.0):
+    import json
+    from bridge import read_request, send_http, ws_recv, ws_send, WS_GUID
+    import base64, hashlib
+    try:
+        reqline, h = read_request(conn)
+        method, path = (reqline.split(" ") + ["", ""])[:2]
+        if h.get("upgrade", "").lower() == "websocket" and path.startswith("/ws"):
+            acc = base64.b64encode(hashlib.sha1(h.get("sec-websocket-key", "").encode() + WS_GUID).digest()).decode()
+            conn.sendall(("HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n"
+                          "Sec-WebSocket-Accept: %s\r\n\r\n" % acc).encode())
+            lock = threading.Lock()
+
+            class WsSock:   # lets Machine.broadcast reach this client
+                def sendall(self, data):
+                    for line in data.decode("latin-1").splitlines():
+                        ws_send(conn, line.encode("latin-1"), 1, lock)
+            ws = WsSock()
+            with m.lock:
+                m.clients.append(ws)
+            try:
+                while True:
+                    op, payload = ws_recv(conn)
+                    if op == 8:
+                        break
+                    if op == 9:
+                        ws_send(conn, payload, 10, lock)
+                        continue
+                    buf = ""
+                    for ch in payload.decode("latin-1"):
+                        if ch in "?!~\x18\x85":
+                            r = m.realtime(ch)
+                            if r:
+                                ws_send(conn, r.encode(), 1, lock)
+                                if m.nova:
+                                    ws_send(conn, b"ok", 1, lock)
+                        elif ch == "\n":
+                            for out in m.line(buf.strip("\r")):
+                                ws_send(conn, out.encode("latin-1"), 1, lock)
+                            buf = ""
+                        else:
+                            buf += ch
+                    if buf.strip():
+                        for out in m.line(buf.strip()):
+                            ws_send(conn, out.encode("latin-1"), 1, lock)
+            finally:
+                with m.lock:
+                    if ws in m.clients:
+                        m.clients.remove(ws)
+            return
+        route = path.split("?")[0]
+        if route == "/info":
+            body = {"code": 200, "msg": "success", "data": {"model": "TOOCAA NOVA (simulator)"}}
+        elif route == "/v1/ipComfirm":
+            time.sleep(confirm_delay)   # the real NOVA waits for a tap on its touchscreen
+            body = {"code": 200, "msg": "confirmed"}
+        elif route == "/v1/deviceInfo":
+            body = {"code": 200, "data": {"model": "TOOCAA NOVA", "firmware": "simulator", "laser": "20W", "airPump": True}}
+        else:
+            return send_http(conn, "404 Not Found", b'{"code":404}', "application/json")
+        send_http(conn, "200 OK", json.dumps(body).encode(), "application/json")
+    except (OSError, ConnectionError):
+        pass
+    finally:
+        conn.close()
+
+
+class WifiSimServer(SimServer):
+    def __init__(self, host="127.0.0.1", port=8002, machine=None, confirm_delay=0.0):
+        super().__init__(host, port, machine)
+        self.confirm_delay = confirm_delay
+
+    def _loop(self):
+        while True:
+            try:
+                conn, _ = self.sock.accept()
+            except OSError:
+                return
+            threading.Thread(target=serve_wifi_client, args=(self.machine, conn, self.confirm_delay), daemon=True).start()
+
+
 def main():
     ap = argparse.ArgumentParser(description="TOOCAA NOVA (Grbl_ESP32) simulator")
     ap.add_argument("--host", default="127.0.0.1")
@@ -385,9 +470,15 @@ def main():
                     help="plain Grbl_ESP32 replies, without the NOVA quirks")
     ap.add_argument("--move-time", type=float, default=0.05,
                     help="seconds each motion line reports Run")
+    ap.add_argument("--wifi", type=int, metavar="PORT", nargs="?", const=8002,
+                    help="also serve the NOVA Wi-Fi API (HTTP + WebSocket /ws), default port 8002")
     a = ap.parse_args()
-    srv = SimServer(a.host, a.port, Machine(move_time=a.move_time, nova_quirks=not a.stock_grbl)).start()
+    machine = Machine(move_time=a.move_time, nova_quirks=not a.stock_grbl)
+    srv = SimServer(a.host, a.port, machine).start()
     print("NOVA simulator on %s:%d  (Ctrl-C to quit)" % (a.host, srv.port))
+    if a.wifi:
+        WifiSimServer(a.host, a.wifi, machine).start()
+        print("NOVA Wi-Fi API on http://%s:%d  (ws://%s:%d/ws)" % (a.host, a.wifi, a.host, a.wifi))
     try:
         while True:
             time.sleep(1)
