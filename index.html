@@ -370,7 +370,7 @@ const T = {
     h_job: 'Job', origin: 'Machine origin', origin_fl: 'Front-left (Y up)', origin_rl: 'Rear-left (TOOCAA profile)', air: 'Air assist (M8/M9)',
     check: 'Check (no motion)', frame: 'Frame (laser off)', run: 'Start job', pause: 'Pause', resume: 'Resume', download: 'Download .gcode',
     h_lbdev: 'LightBurn profile audit (.lbdev)', open_lbdev: 'Open toocaa_nova.lbdev…', lbdev_note: 'Read in your browser only – nothing is uploaded.',
-    wifiext: 'Wi-Fi (browser extension)', ip_missing: 'Enter the NOVA IP address (shown on its touchscreen under Settings → Wi-Fi).',
+    wifiext: 'Wi-Fi (browser extension)', nova_unreachable: 'no answer – check the IP on the NOVA touchscreen and that this computer is on the same network', ip_missing: 'Enter the NOVA IP address (shown on its touchscreen under Settings → Wi-Fi).',
     no_ext: 'No connection extension found. Install “ToocaaLaser Connect” (see the link below) and reload this page.',
     confirm_screen: 'Tap “Confirm” on the NOVA touchscreen…',
     note_wifiext: 'Needs the small “ToocaaLaser Connect” extension for Chrome/Edge (an https page may not open local addresses by itself). Enter the IP shown on the NOVA, connect, then tap Confirm on its screen.',
@@ -419,7 +419,7 @@ const T = {
     h_job: 'Úloha', origin: 'Počátek stroje', origin_fl: 'Vpředu vlevo (Y nahoru)', origin_rl: 'Vzadu vlevo (profil TOOCAA)', air: 'Vzduch (M8/M9)',
     check: 'Ověřit (bez pohybu)', frame: 'Rámeček (laser vyp.)', run: 'Spustit úlohu', pause: 'Pauza', resume: 'Pokračovat', download: 'Stáhnout .gcode',
     h_lbdev: 'Audit profilu LightBurn (.lbdev)', open_lbdev: 'Otevřít toocaa_nova.lbdev…', lbdev_note: 'Čte se jen v prohlížeči – nic se nikam neposílá.',
-    wifiext: 'Wi-Fi (rozšíření prohlížeče)', ip_missing: 'Zadej IP adresu NOVA (najdeš ji na displeji v Nastavení → Wi-Fi).',
+    wifiext: 'Wi-Fi (rozšíření prohlížeče)', nova_unreachable: 'bez odpovědi – zkontroluj IP na displeji NOVA a že je počítač ve stejné síti', ip_missing: 'Zadej IP adresu NOVA (najdeš ji na displeji v Nastavení → Wi-Fi).',
     no_ext: 'Nenašel jsem rozšíření pro připojení. Nainstaluj „ToocaaLaser Connect“ (odkaz níže) a obnov stránku.',
     confirm_screen: 'Potvrď připojení na displeji NOVA (Confirm)…',
     note_wifiext: 'Potřebuje malé rozšíření „ToocaaLaser Connect“ pro Chrome/Edge (stránka přes https sama do domácí sítě nesmí). Zadej IP z displeje NOVA, připoj a na displeji potvrď.',
@@ -571,7 +571,10 @@ class ExtLink {
   }
   async http(path, timeout) {
     const r = await this.send({requestType: 'http-fetch', url: `http://${this.ip}:${NOVA_PORT}${path}`, fetchOptions: {method: 'GET'}, timeout}, timeout + 2000);
-    if (!r || r.success === false || r.error) throw new Error(`${path}: ${(r && r.error) || 'no reply'}`);
+    if (!r || r.success === false || r.error) {
+      const e = String((r && r.error) || 'no reply');
+      throw new Error(/abort|timeout|Failed to fetch|NetworkError/i.test(e) ? t('nova_unreachable') : `${path}: ${e}`);
+    }
     return r.data;
   }
   async open() {
