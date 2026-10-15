@@ -364,6 +364,7 @@ details summary{cursor:pointer;color:var(--mut);font-size:12.5px}
       <button id="camCal" data-i18n="cam_cal" disabled>Calibrate</button>
       <button id="camCross" data-i18n="cam_cross" title="4 crosses at X20 Y20 / X277 Y20 / X277 Y190 / X20 Y190">Calibration crosses</button>
       <label class="check"><input type="checkbox" id="camShow" checked><span data-i18n="cam_show">Show</span></label>
+      <label class="check"><input type="checkbox" id="camAuto" checked><span data-i18n="cam_auto">Photo when the lid closes</span></label>
       <input type="range" id="camAlpha" min="0.15" max="1" step="0.05" value="0.8" aria-label="opacity" style="width:90px">
     </div>
     <div id="camCalBox" class="hidden">
@@ -503,6 +504,7 @@ const T = {
     cam_click: 'Click point {n}/4: {name}', cam_done: 'All 4 points set – Save.', cam_need_cal: 'Calibrate the camera first.',
     cam_c1: 'rear-left (X0 Y0)', cam_c2: 'rear-right (X1 Y0)', cam_c3: 'front-right (X1 Y1)', cam_c4: 'front-left (X0 Y1)',
     cam_rot: 'The camera overlay is only for the flat bed.',
+    cam_auto: 'Photo when the lid closes', cam_auto_shot: 'Lid closed – new camera photo on the plate.',
     cam_cross: 'Calibration crosses', cam_cross_added: 'Added 4 crosses at X20 Y20, X277 Y20, X277 Y190, X20 Y190. Burn them on paper or cardboard (Start job), leave it in place, then Calibrate and click the 4 cross centres. The reference numbers are already filled in.',
     focus_pt: 'Place focus point', focus_pt_click: 'Click the plate where the NOVA should measure.', focus_pt_at: 'Focus point X {x} Y {y} mm – drag it to move.',
     focus_need_pt: 'Place a focus point first.', focus_done: 'Autofocus done – measured thickness {t} mm.', z_home: 'Z home', thickness: 'Material thickness mm', thick_set: 'Set Z',
@@ -582,6 +584,7 @@ const T = {
     cam_click: 'Klikni na bod {n}/4: {name}', cam_done: 'Všechny 4 body jsou zadané – Uložit.', cam_need_cal: 'Nejdřív kameru zkalibruj.',
     cam_c1: 'vzadu vlevo (X0 Y0)', cam_c2: 'vzadu vpravo (X1 Y0)', cam_c3: 'vpředu vpravo (X1 Y1)', cam_c4: 'vpředu vlevo (X0 Y1)',
     cam_rot: 'Obraz z kamery je jen pro rovnou plochu.',
+    cam_auto: 'Snímek po zavření víka', cam_auto_shot: 'Víko zavřené – nový snímek z kamery na ploše.',
     cam_cross: 'Kalibrační kříže', cam_cross_added: 'Přidány 4 kříže na X20 Y20, X277 Y20, X277 Y190, X20 Y190. Vypal je na papír nebo karton (Spustit úlohu), nech ho ležet, pak dej Kalibrovat a klikni na středy 4 křížů. Čísla referenčního obdélníku jsou už vyplněná.',
     focus_pt: 'Umístit bod ostření', focus_pt_click: 'Klikni na plochu, kde má NOVA měřit.', focus_pt_at: 'Bod ostření X {x} Y {y} mm – přetažením ho posuneš.',
     focus_need_pt: 'Nejdřív umísti bod ostření.', focus_done: 'Autofokus hotový – naměřená tloušťka {t} mm.', z_home: 'Z domů', thickness: 'Tloušťka materiálu mm', thick_set: 'Nastavit Z',
@@ -1400,6 +1403,12 @@ async function connect() {
     else if (/^FF LD [01]/.test(m)) log(m.endsWith('1') ? 'lid opened' : 'lid closed', m.endsWith('1') ? 'bad' : 'sys');  // sent unprompted
     else if (/^FF (AL|ER)/.test(m)) log('⚠ NOVA ' + m + (m.startsWith('FF ER') ? ' ' + (FF_ERRORS[m.split(' ')[2]] || '') : ''), 'bad');
     if (/^FF LD [01]/.test(m) && app.dev?.st) { app.dev.st.coverPlateState = +m.slice(-1); renderAccessories(); }
+    // like TOOCAA Studio (NOVA_PHOTO after the cover closes): fresh camera photo on the plate,
+    // after a short pause so the lid camera can settle its focus and exposure
+    if (/^FF LD 0/.test(m) && $('#camAuto').checked && CAM.stream && CAM.cal && !isRot() && !app.running) {
+      clearTimeout(CAM.autoTimer);
+      CAM.autoTimer = setTimeout(() => { if (CAM.stream) { camShot(); log(t('cam_auto_shot'), 'sys'); } }, 1500);
+    }
     if (/^FF S4 200/.test(m) && app.running) { app.paused = true; $('#btnPause').textContent = t('resume'); log(t('dev_paused'), 'sys'); }
     else if (/^FF S5 200/.test(m) && app.running) { app.paused = false; $('#btnPause').textContent = t('pause'); log(t('dev_resumed'), 'sys'); }
     else if (/^FF S6 200/.test(m) && app.running) { app.abort = true; log(t('dev_stopped'), 'bad'); }
@@ -3137,6 +3146,8 @@ $('#camShot').addEventListener('click', camShot);
 $('#camCal').addEventListener('click', camCalStart);
 $('#camCross').addEventListener('click', addCalCrosses);
 $('#camShow').addEventListener('change', draw);
+try { const v = localStorage.getItem('tl-camauto'); if (v !== null) $('#camAuto').checked = v === '1'; } catch {}
+$('#camAuto').addEventListener('change', e => { try { localStorage.setItem('tl-camauto', e.target.checked ? '1' : '0'); } catch {} });
 $('#camAlpha').addEventListener('input', draw);
 $('#camCalReset').addEventListener('click', () => { CAM.pts = []; camCalDraw(); });
 $('#camCalCancel').addEventListener('click', () => $('#camCalBox').classList.add('hidden'));
@@ -3150,7 +3161,7 @@ navigator.mediaDevices?.addEventListener?.('devicechange', () => camList().catch
 camList().catch(() => {});
 try { const r = JSON.parse(localStorage.getItem('tl-rot') || 'null'); if (r) { $('#workMode').value = r.mode === 'chuck' ? 'chuck' : 'flat'; if (r.d) $('#diameter').value = r.d; } } catch {}
 // ---- version: the build stamp of this file + the newest index.html commit on GitHub
-const APP_BUILD = '2026-10-15 14:48';
+const APP_BUILD = '2026-10-15 15:12';
 (async () => {
   const el = $('#appVer'); el.textContent = 'build ' + APP_BUILD;
   try {
