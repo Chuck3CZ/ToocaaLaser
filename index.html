@@ -32,6 +32,7 @@ header h1{font-size:19px;margin:0;letter-spacing:.2px}
 header .tag{color:var(--mut);font-size:13px;flex:1;min-width:180px}
 .lang button{padding:4px 8px;font-size:12px}
 .lang button.on{background:var(--acc);color:var(--acc-fg)}
+body.simple .adv{display:none!important}
 main{max-width:1320px;margin:0 auto;display:grid;gap:14px;grid-template-columns:minmax(0,1fr)}
 @media(min-width:1020px){main{grid-template-columns:minmax(0,1.7fr) minmax(320px,1fr)}}
 .col{display:grid;gap:14px;align-content:start;min-width:0}
@@ -107,6 +108,7 @@ details summary{cursor:pointer;color:var(--mut);font-size:12.5px}
 <header>
   <h1>ToocaaLaser</h1>
   <div class="tag" data-i18n="tagline">Local design &amp; control for TOOCAA NOVA – no cloud, no account</div>
+  <div class="lang row" id="uiMode"><button data-ui="simple" data-i18n="ui_simple">Simple</button><button data-ui="expert" data-i18n="ui_expert">Expert</button></div>
   <div class="lang row"><button data-lang="cs">CZ</button><button data-lang="en">EN</button></div>
   <button class="stop" id="btnStop" title="Esc" disabled>STOP</button>
 </header>
@@ -271,7 +273,7 @@ details summary{cursor:pointer;color:var(--mut);font-size:12.5px}
     <div class="row">
       <label><span data-i18n="module">Laser module</span><br><select id="module"><option value="20">20 W</option><option value="10">10 W</option><option value="2">2 W IR</option></select></label>
       <label><span data-i18n="origin">Machine origin</span><br><select id="origin"><option value="rl" data-i18n="origin_rl" selected>Rear-left (TOOCAA profile)</option><option value="fl" data-i18n="origin_fl">Front-left (Y up)</option></select></label>
-      <label class="check" style="align-self:flex-end"><input type="checkbox" id="air"><span data-i18n="air">Air assist (M8/M9)</span></label>
+      <label class="check" style="align-self:flex-end"><input type="checkbox" id="air" checked><span data-i18n="air">Air assist (M8/M9)</span></label>
     </div>
     <div class="row">
       <label><span data-i18n="work_mode">Work mode</span><br><select id="workMode"><option value="flat" data-i18n="mode_flat">Flat surface</option><option value="chuck" data-i18n="mode_chuck">Chuck rotary</option><option value="roller" data-i18n="mode_roller">Roller rotary</option></select></label>
@@ -408,12 +410,6 @@ details summary{cursor:pointer;color:var(--mut);font-size:12.5px}
     </div>
   </section>
 
-  <section>
-    <h2 data-i18n="h_lbdev">LightBurn profile audit (.lbdev)</h2>
-    <label class="filebtn plain"><input type="file" id="lbdevInput" accept=".lbdev,.json,.xml,*/*" class="hidden"><span data-i18n="open_lbdev">Open toocaa_nova.lbdev…</span></label>
-    <p class="note" data-i18n="lbdev_note">Read in your browser only – nothing is uploaded.</p>
-    <pre id="lbdevOut" class="hidden"></pre>
-  </section>
 </div>
 </main>
 
@@ -468,7 +464,7 @@ const T = {
     mode: 'Mode', mode_line: 'Line (outline / cut)', mode_fill: 'Fill (engrave area)', power: 'Power %', speed: 'Speed mm/min', passes: 'Passes', interval: 'Line interval mm',
     h_image: 'Image', threshold: 'Threshold', dither: 'Dither (photos)', invert: 'Invert',
     h_array: 'Copy into a grid', cols: 'Columns', rows: 'Rows', gap: 'Gap mm', make_array: 'Create copies',
-    h_job: 'Job', origin: 'Machine origin', origin_fl: 'Front-left (Y up)', origin_rl: 'Rear-left (TOOCAA profile)', air: 'Air assist (M8/M9)',
+    h_job: 'Job', origin: 'Machine origin', origin_fl: 'Front-left (Y up)', origin_rl: 'Rear-left (TOOCAA profile)', air: 'Air assist (fan on the material)',
     check: 'Check (no motion)', frame: 'Frame (laser off)', run: 'Start job', pause: 'Pause', resume: 'Resume', download: 'Download .gcode',
     h_lbdev: 'LightBurn profile audit (.lbdev)', open_lbdev: 'Open toocaa_nova.lbdev…', lbdev_note: 'Read in your browser only – nothing is uploaded.',
     wifiext: 'Wi-Fi (browser extension)', nova_unreachable: 'no answer – check the IP on the NOVA touchscreen and that this computer is on the same network', ip_missing: 'Enter the NOVA IP address (shown on its touchscreen under Settings → Wi-Fi).',
@@ -503,6 +499,8 @@ const T = {
     h_shapes: 'Shapes', b_union: 'Union', b_sub: 'Subtract', b_int: 'Intersect', b_xor: 'Exclude', offset_mm: 'Offset mm', b_offset: 'Create offset',
     shapes_note: 'Subtract keeps the first selected shape and cuts the others out of it. Works on rectangles, circles and vectors (trace text or images first).',
     need_two: 'Select at least two shapes.', need_vec: 'Select rectangles, circles or vectors.', qr_prompt: 'Text or link for the QR code:', shape_empty: 'The result is empty.',
+    ui_simple: 'Simple', ui_expert: 'Expert',
+    confirm_motion: 'Allow the machine to move?\n\nKeep hands out of the machine and the lid closed.',
     h_jog: 'Jog (laser off)', step: 'Step mm', jogfeed: 'Feed mm/min', unlock: 'Unlock', focus: 'Autofocus', air_on: 'Air on', air_off: 'Air off',
     h_console: 'Console', send: 'Send', clear: 'Clear',
     footer: "Unofficial project, not affiliated with TOOCAA. Talks to the machine's Grbl_ESP32 controller directly; nothing leaves your computer.",
@@ -511,7 +509,7 @@ const T = {
     note_sim: 'Built-in Grbl_ESP32 simulator – try everything without the machine.',
     no_webserial: 'This browser has no Web Serial – use Chrome or Edge on desktop, or the Wi-Fi bridge.',
     need_motion: 'Refused: tick “Allow motion” first.', need_laser: 'Refused: this job switches the laser on – tick “Allow laser”.',
-    forbidden: 'Refused: settings/system commands are never sent from here (use the touchscreen or LightBurn).',
+    forbidden: 'Refused: settings/system commands are never sent from here (use the touchscreen).',
     no_job: 'Add something to the plate first.', out_of_bed: 'Something is outside the 297 × 210 mm work area.',
     laser_mode: 'Controller reports $32 (laser mode) ≠ 1 – laser jobs are blocked.',
     confirm_laser: 'Allow laser jobs?\n\nLid closed, material flat, extraction running, someone watching the machine for the whole job.',
@@ -541,7 +539,7 @@ const T = {
     mode: 'Režim', mode_line: 'Čára (obrys / řez)', mode_fill: 'Výplň (gravírování plochy)', power: 'Výkon %', speed: 'Rychlost mm/min', passes: 'Průchody', interval: 'Rozteč řádků mm',
     h_image: 'Obrázek', threshold: 'Práh', dither: 'Rozptyl (fotky)', invert: 'Invertovat',
     h_array: 'Kopírovat do mřížky', cols: 'Sloupce', rows: 'Řádky', gap: 'Mezera mm', make_array: 'Vytvořit kopie',
-    h_job: 'Úloha', origin: 'Počátek stroje', origin_fl: 'Vpředu vlevo (Y nahoru)', origin_rl: 'Vzadu vlevo (profil TOOCAA)', air: 'Vzduch (M8/M9)',
+    h_job: 'Úloha', origin: 'Počátek stroje', origin_fl: 'Vpředu vlevo (Y nahoru)', origin_rl: 'Vzadu vlevo (profil TOOCAA)', air: 'Ofuk (vzduch na materiál)',
     check: 'Ověřit (bez pohybu)', frame: 'Rámeček (laser vyp.)', run: 'Spustit úlohu', pause: 'Pauza', resume: 'Pokračovat', download: 'Stáhnout .gcode',
     h_lbdev: 'Audit profilu LightBurn (.lbdev)', open_lbdev: 'Otevřít toocaa_nova.lbdev…', lbdev_note: 'Čte se jen v prohlížeči – nic se nikam neposílá.',
     wifiext: 'Wi-Fi (rozšíření prohlížeče)', nova_unreachable: 'bez odpovědi – zkontroluj IP na displeji NOVA a že je počítač ve stejné síti', ip_missing: 'Zadej IP adresu NOVA (najdeš ji na displeji v Nastavení → Wi-Fi).',
@@ -576,6 +574,8 @@ const T = {
     h_shapes: 'Tvary', b_union: 'Sjednotit', b_sub: 'Odečíst', b_int: 'Průnik', b_xor: 'Vyloučit', offset_mm: 'Offset mm', b_offset: 'Vytvořit offset',
     shapes_note: 'Odečíst nechá první vybraný tvar a ostatní z něj vyřízne. Funguje s obdélníky, kruhy a vektory (text nebo obrázek nejdřív převeď na vektory).',
     need_two: 'Vyber aspoň dva tvary.', need_vec: 'Vyber obdélníky, kruhy nebo vektory.', qr_prompt: 'Text nebo odkaz pro QR kód:', shape_empty: 'Výsledek je prázdný.',
+    ui_simple: 'Jednoduchý', ui_expert: 'Expert',
+    confirm_motion: 'Povolit pohyb stroje?\n\nRuce mimo stroj, víko zavřené.',
     h_jog: 'Posun (laser vyp.)', step: 'Krok mm', jogfeed: 'Rychlost mm/min', unlock: 'Odemknout', focus: 'Autofokus', air_on: 'Vzduch zap.', air_off: 'Vzduch vyp.',
     h_console: 'Konzole', send: 'Odeslat', clear: 'Vymazat',
     footer: 'Neoficiální projekt, nemá vztah k TOOCAA. Komunikuje přímo s řadičem Grbl_ESP32 ve stroji; nic neopouští tvůj počítač.',
@@ -584,7 +584,7 @@ const T = {
     note_sim: 'Vestavěný simulátor Grbl_ESP32 – vyzkoušej vše bez stroje.',
     no_webserial: 'Tento prohlížeč nemá Web Serial – použij Chrome nebo Edge na počítači, nebo Wi-Fi most.',
     need_motion: 'Odmítnuto: nejdřív zaškrtni „Povolit pohyb“.', need_laser: 'Odmítnuto: úloha zapíná laser – zaškrtni „Povolit laser“.',
-    forbidden: 'Odmítnuto: nastavení a systémové příkazy se odsud nikdy neposílají (použij displej nebo LightBurn).',
+    forbidden: 'Odmítnuto: nastavení a systémové příkazy se odsud nikdy neposílají (použij displej).',
     no_job: 'Nejdřív něco přidej na plochu.', out_of_bed: 'Něco přesahuje pracovní plochu 297 × 210 mm.',
     laser_mode: 'Řadič hlásí $32 (laserový režim) ≠ 1 – laserové úlohy jsou zablokované.',
     confirm_laser: 'Povolit laserové úlohy?\n\nVíko zavřené, materiál rovně, odsávání běží a někdo stroj po celou dobu hlídá.',
@@ -1062,16 +1062,17 @@ function setPerms(motion, laser) {
   $('#allowMotion').checked = app.perms.motion; $('#allowLaser').checked = app.perms.laser;
   refreshButtons();
 }
+const canMove = () => app.perms.motion || document.body.classList.contains('simple');  // simple mode asks on click
 function refreshButtons() {
   const c = !!app.link, r = app.running, hasJob = app.job.lines.length > 0;
   $('#btnStop').disabled = !c;
   $('#allowMotion').disabled = !c; $('#allowLaser').disabled = !c;
   $('#btnCheck').disabled = !c || r || !hasJob;
-  $('#btnFrame').disabled = !c || r || !hasJob || !app.perms.motion;
-  $('#btnRun').disabled = !c || r || !hasJob || !app.perms.motion || !app.job.inBed;
+  $('#btnFrame').disabled = !c || r || !hasJob || !canMove();
+  $('#btnRun').disabled = !c || r || !hasJob || !canMove() || !app.job.inBed;
   $('#btnPause').disabled = !r;
   $('#btnDownload').disabled = !hasJob;
-  $$('[data-jog],#btnHome,#btnUnlock,#btnFocus,#btnAirOn,#btnAirOff,#zUp,#zDown,#zHome,#thickSet').forEach(b => b.disabled = !c || r || !app.perms.motion);
+  $$('[data-jog],#btnHome,#btnUnlock,#btnFocus,#btnAirOn,#btnAirOff,#zUp,#zDown,#zHome,#thickSet').forEach(b => b.disabled = !c || r || !canMove());
   $$('#wifiScan,#wifiJoin,#devRename').forEach(b => b.disabled = !c || r);
   $('#btnHold').disabled = !c; $('#btnResume').disabled = !c;
   $('#btnSend').disabled = !c; $$('[data-q]').forEach(b => b.disabled = !c);
@@ -1179,6 +1180,7 @@ async function refreshDevice(auto = false) {
   if (info && auto) {
     const rot = !!(info.rotary && info.rotary.isOnline);
     if (rot) { if (!isRot()) setWorkMode('chuck', t('rot_auto_on')); } else setWorkMode('flat', t('rot_auto_off'));
+    if (info.airAssist) { $('#air').checked = !!info.airAssist.isOnline; regenerate(); }
     const pw = info.laser && info.laser.power;
     if (pw && $(`#module option[value="${pw}"]`)) { $('#module').value = String(pw); $('#module').dispatchEvent(new Event('change')); }
   }
@@ -1409,6 +1411,7 @@ function addBurn(a, b) { app.burns.push([a[0], a[1], b[0], b[1]]); if (app.burns
 
 async function gated(line, timeout = 10000) {
   const kind = classify(line);
+  if (kind === 'motion' || kind === 'laser') ensurePerms(kind);
   if (kind === 'forbidden') { log(t('forbidden'), 'bad'); return null; }
   if (kind === 'motion' && !app.perms.motion) { log(t('need_motion'), 'bad'); return null; }
   if (kind === 'laser' && !(app.perms.motion && app.perms.laser)) { log(t('need_laser'), 'bad'); return null; }
@@ -1419,6 +1422,7 @@ async function gated(line, timeout = 10000) {
 // (beam off: laser mode never fires at S0) and the target is checked here.
 const noJog = () => app.noJog || (app.grbl && app.grbl.okAfterStatus === true);
 async function moveHead(x, y, rel, f) {
+  ensurePerms('motion');
   if (!app.perms.motion) { log(t('need_motion'), 'bad'); return false; }
   const g = app.grbl, w = [x != null ? `X${f3(x)}` : '', y != null ? `Y${f3(y)}` : ''].filter(Boolean).join(' ');
   if (!noJog()) {
@@ -1490,7 +1494,7 @@ function gridLayout(o) {
   }
   return {cells, labels};
 }
-function gridLines(o, smax, YW, ext) {
+function gridLines(o, smax, YW, ext, air) {
   const G = gridLayout(o), g = geom(o), L = [], W = (u, v) => toWorld(o, g, u, v);
   const pt = ([x, y]) => `X${f3(x)} ${YW(y)}`, passes = clamp(Math.round(+o.passes || 1), 1, 20);
   const dv = clamp(+o.interval || 0.1, 0.05, 1) / Math.max(1e-6, o.sy);
@@ -1499,6 +1503,7 @@ function gridLines(o, smax, YW, ext) {
       const S = Math.round(clamp(c.P, 0, 100) / 100 * smax), F = clamp(c.S, 60, 36000);
       L.push(`; cell ${c.P}% ${F} mm/min`);
       if (ext) { const acc = o.mode === 'fill' ? 2000 : 1250; L.push(`; air ${F < 3000 ? 3 : c.P < 50 ? 1 : 2}`, `M200 X${acc} Y${acc}`); }
+      if (air) L.push('M8');
       if (o.mode === 'fill') {
         let dir = 1, first = true;
         for (let v = c.v0 + dv / 2; v < c.v1; v += dv) {
@@ -2228,7 +2233,8 @@ function genJob() {
       const cut = o.mode === 'line' && pw >= 90, acc = o.mode === 'fill' ? 2000 : 1250;
       L.push(`; air ${cut || F < 3000 ? 3 : pw < 50 ? 1 : 2}`, `M200 X${acc} Y${acc}`);
     }
-    if (o.kind === 'grid') { L.push(...gridLines(o, smax, YW, ext)); continue; }
+    if (air) L.push('M8');  // TOOCAA Studio: M8 before every path
+    if (o.kind === 'grid') { L.push(...gridLines(o, smax, YW, ext, air)); continue; }
     const body = objLines(o, S, F, YW);
     for (let k = 0; k < passes; k++) for (const l of body) L.push(l);
   }
@@ -2729,6 +2735,7 @@ async function runJob(check) {
     return;
   }
   if (!check) {
+    ensurePerms(fires ? 'laser' : 'motion');
     if (!app.perms.motion) return log(t('need_motion'), 'bad');
     if (fires && !app.perms.laser) return log(t('need_laser'), 'bad');
     if (fires && app.settings.$32 && app.settings.$32 !== '1') return log(t('laser_mode'), 'bad');
@@ -2776,6 +2783,7 @@ async function runJob(check) {
 // Rotary frame, laser off: head to the axis line, then trace the job outline
 // with X and A (Studio sends `FF BD X.. A.. X.. A.. D<Ø>` instead).
 async function frameRotary(b, f) {
+  ensurePerms('motion');
   if (!app.perms.motion) { log(t('need_motion'), 'bad'); return; }
   let st; try { st = await app.grbl.status(); } catch (e) { log(errText(e), 'bad'); return; }
   if (st.state !== 'Idle') { log('frame needs Idle, machine is ' + st.state, 'bad'); return; }
@@ -2860,6 +2868,37 @@ $('#allowLaser').addEventListener('change', e => {
 });
 $$('[data-jog]').forEach(b => b.addEventListener('click', () => { const [dx, dy] = b.dataset.jog.split(',').map(Number); jog(dx, $('#origin').value === 'fl' ? dy : -dy); }));
 $('#btnHome').addEventListener('click', () => gated('$H', 120000));
+// ---- simple / expert. Simple keeps: files, text, shapes, test grid, size and
+// position, material, power/speed, air, flat/rotary, frame, autofocus, start,
+// pause, STOP, jog arrows, camera, accessories. Expert shows everything.
+const ADV = ['#tDemo', '#tQr', '#tCopy', '#tPaste', '#tDup', '.toolbar .sep', '#showPaths', '[data-prop="name"]', '#multiInfo',
+  'h3[data-i18n="h_arrange"]', 'row:#alL', 'row:#alignTo', 'row:#oFront', '[data-prop="interval"]', 'row:#presetSel', '#traceBox',
+  'h3[data-i18n="h_shapes"]', 'row:#bUnion', 'row:#offMm', '[data-i18n="shapes_note"]', 'h3[data-i18n="h_array"]', 'row:#arrCols',
+  '#module', '#origin', '#novaExt', '#frameNova', '#btnCheck', '#btnDownload', '#novaSetup', '.kv', 'section:#allowMotion',
+  '#jogFeed', 'row:#btnUnlock', '#btnAirOn', '#btnAirOff', 'row:#zUp', 'row:#thickSet', 'section:#cmd', '#ctrl', '#jobStats'];
+function tagAdvanced() {
+  for (const sel of ADV) {
+    const [how, q] = sel.includes(':#') ? sel.split(':') : ['', sel];
+    for (const el of document.querySelectorAll(q)) {
+      const t2 = how === 'row' ? el.closest('.row') : how === 'section' ? el.closest('section') : ['INPUT', 'SELECT'].includes(el.tagName) ? (el.closest('label') || el) : el;
+      t2?.classList.add('adv');
+    }
+  }
+}
+const isSimple = () => document.body.classList.contains('simple');
+function setUiMode(m) {
+  document.body.classList.toggle('simple', m !== 'expert');
+  $$('[data-ui]').forEach(b => b.classList.toggle('on', b.dataset.ui === (m === 'expert' ? 'expert' : 'simple')));
+  try { localStorage.setItem('tl-ui', m); } catch {}
+  refreshButtons(); draw();
+}
+// simple mode: no Safety checkboxes – one confirmation the first time it is needed
+function ensurePerms(kind) {
+  if (!isSimple() || !app.link) return;
+  if (kind === 'laser' && !app.perms.laser) { if (confirm(t('confirm_laser'))) setPerms(true, true); }
+  else if (kind === 'motion' && !app.perms.motion) { if (confirm(t('confirm_motion'))) setPerms(true, app.perms.laser); }
+}
+$$('[data-ui]').forEach(b => b.addEventListener('click', () => setUiMode(b.dataset.ui)));
 $('#btnFocus').addEventListener('click', autofocus);
 $('#tGrid').addEventListener('click', addGrid);
 $('#tQr').addEventListener('click', () => addQr());
@@ -2960,7 +2999,7 @@ window.addEventListener('resize', draw);
 matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', () => { previewCache.clear(); draw(); });
 
 // lbdev audit + console
-$('#lbdevInput').addEventListener('change', async e => {
+$('#lbdevInput')?.addEventListener('change', async e => {
   const f = e.target.files[0]; if (!f) return; e.target.value = '';
   const out = $('#lbdevOut'); out.classList.remove('hidden');
   try { out.textContent = f.name + '\n' + auditLbdev(await f.text()); } catch (err) { out.textContent = 'cannot read: ' + errText(err); }
@@ -3007,6 +3046,8 @@ $('#camCalCanvas').addEventListener('click', e => {
 navigator.mediaDevices?.addEventListener?.('devicechange', () => camList().catch(() => {}));
 camList().catch(() => {});
 try { const r = JSON.parse(localStorage.getItem('tl-rot') || 'null'); if (r) { $('#workMode').value = r.mode === 'chuck' ? 'chuck' : 'flat'; if (r.d) $('#diameter').value = r.d; } } catch {}
+tagAdvanced();
+{ let m = 'simple'; try { m = localStorage.getItem('tl-ui') || 'simple'; } catch {} setUiMode(m); }
 applyLang(); applyWorkMode(false); syncProps(); renderObjList(); refreshButtons(); draw();
 (async () => {
   let saved = null;
