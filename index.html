@@ -242,9 +242,13 @@ details summary{cursor:pointer;color:var(--mut);font-size:12.5px}
       <label class="check" style="align-self:flex-end"><input type="checkbox" id="air"><span data-i18n="air">Air assist (M8/M9)</span></label>
     </div>
     <div class="row">
-      <label><span data-i18n="work_mode">Work mode</span><br><select id="workMode"><option value="flat" data-i18n="mode_flat">Flat surface</option><option value="chuck" data-i18n="mode_chuck">Chuck rotary</option></select></label>
+      <label><span data-i18n="work_mode">Work mode</span><br><select id="workMode"><option value="flat" data-i18n="mode_flat">Flat surface</option><option value="chuck" data-i18n="mode_chuck">Chuck rotary</option><option value="roller" data-i18n="mode_roller">Roller rotary</option></select></label>
       <label id="diaWrap" class="hidden"><span data-i18n="diameter">Diameter (mm)</span><br><input type="number" id="diameter" min="5" max="150" step="0.1" value="70" style="width:90px"></label>
       <span class="note" id="rotNote" style="margin:0;align-self:flex-end"></span>
+    </div>
+    <div class="row">
+      <label class="check"><input type="checkbox" id="novaExt" checked><span data-i18n="nova_ext">NOVA: air level per layer + acceleration (M200)</span></label>
+      <label class="check"><input type="checkbox" id="frameNova"><span data-i18n="frame_nova" title="FF BD">Frame with the NOVA (FF BD)</span></label>
     </div>
     <div class="stats" id="jobStats"></div>
     <div class="bar"><i id="progress"></i></div>
@@ -279,6 +283,13 @@ details summary{cursor:pointer;color:var(--mut);font-size:12.5px}
     </div>
     <p class="note" id="connNote"></p>
     <p class="note hidden" id="extLink"><a href="extension/" target="_blank" rel="noopener">ToocaaLaser Connect – install / instalace →</a></p>
+    <details id="novaSetup">
+      <summary data-i18n="nova_setup">NOVA Wi-Fi and name (over USB)</summary>
+      <div class="row" style="margin-top:8px"><button id="wifiScan" data-i18n="wifi_scan" disabled>Find networks</button><select id="wifiList" class="grow" aria-label="Wi-Fi"></select></div>
+      <div class="row"><input type="password" id="wifiPass" class="grow" autocomplete="off" data-i18n-ph="wifi_pass" placeholder="Wi-Fi password"><button id="wifiJoin" data-i18n="wifi_join" disabled>Connect NOVA</button></div>
+      <div class="row"><input type="text" id="devName" class="grow" maxlength="32" data-i18n-ph="dev_name" placeholder="Device name"><button id="devRename" data-i18n="dev_rename" disabled>Rename</button></div>
+      <p class="note" id="wifiNote"></p>
+    </details>
   </section>
 
   <section>
@@ -340,7 +351,17 @@ details summary{cursor:pointer;color:var(--mut);font-size:12.5px}
       </div>
     </div>
     <div class="row" style="margin-top:8px"><button id="btnUnlock" title="$X" data-i18n="unlock">Unlock</button><button id="btnHold" title="!">Hold</button><button id="btnResume" title="~">Resume</button></div>
-    <div class="row"><button id="btnFocus" title="G38.2" data-i18n="focus">Autofocus</button><button id="btnAirOn" title="M8" data-i18n="air_on">Air on</button><button id="btnAirOff" title="M9" data-i18n="air_off">Air off</button></div>
+    <div class="row"><button id="btnFocusPt" data-i18n="focus_pt">Place focus point</button><button id="btnFocus" title="FF FC X.. Y.. (NOVA) / G38.2" data-i18n="focus">Autofocus</button><button id="btnAirOn" title="M8" data-i18n="air_on">Air on</button><button id="btnAirOff" title="M9" data-i18n="air_off">Air off</button></div>
+    <p class="note" id="focusNote" style="margin:4px 0 0"></p>
+    <div class="row" style="margin-top:8px">
+      <b>Z</b><button id="zUp" title="G91 G0 Z+">Z +</button><button id="zDown" title="G91 G0 Z−">Z −</button>
+      <select id="zStep" aria-label="Z step"><option>0.5</option><option selected>1</option><option>2</option><option>5</option></select>
+      <button id="zHome" title="$HZ" data-i18n="z_home">Z home</button>
+    </div>
+    <div class="row">
+      <label><span data-i18n="thickness">Material thickness mm</span> <input type="number" id="thick" min="0" max="35" step="0.1" value="3" style="width:72px"></label>
+      <button id="thickSet" title="G90 G0 Z(35 − t)" data-i18n="thick_set">Set Z</button>
+    </div>
   </section>
 
   <section>
@@ -378,7 +399,10 @@ const FLAT_BED = {w: 297, h: 210};  // physical NOVA bed (20 W module)
 // π·Ø tall; a design Y becomes the A axis in degrees, A = y / (π·Ø) · 360
 // (chuck, sign +1). Machine Y stays on the axis line: pO() in Studio.
 const ROT_W = 190;
-const isRot = () => $('#workMode') && $('#workMode').value === 'chuck';
+const isRot = () => !!$('#workMode') && $('#workMode').value !== 'flat';
+// design Y (mm along the circumference) -> A word. Chuck: degrees; roller: Studio's
+// cO() = −y / (16·π / 32) (roller wheel 16 mm, rotation distance 32).
+const toA = y => f3($('#workMode').value === 'roller' ? -y / (16 * Math.PI / 32) : y / rotPer() * 360);
 const rotDia = () => Math.min(150, Math.max(5, +$('#diameter').value || 70));
 const rotPer = () => Math.PI * rotDia();
 const rotaryY = d => d >= 75 ? FLAT_BED.h : FLAT_BED.h + 5 - (75 - d);
@@ -435,6 +459,12 @@ const T = {
     cam_click: 'Click point {n}/4: {name}', cam_done: 'All 4 points set – Save.', cam_need_cal: 'Calibrate the camera first.',
     cam_c1: 'rear-left (X0 Y0)', cam_c2: 'rear-right (X1 Y0)', cam_c3: 'front-right (X1 Y1)', cam_c4: 'front-left (X0 Y1)',
     cam_rot: 'The camera overlay is only for the flat bed.',
+    focus_pt: 'Place focus point', focus_pt_click: 'Click the plate where the NOVA should measure.', focus_pt_at: 'Focus point X {x} Y {y} mm – drag it to move.',
+    focus_need_pt: 'Place a focus point first.', focus_done: 'Autofocus done – measured thickness {t} mm.', z_home: 'Z home', thickness: 'Material thickness mm', thick_set: 'Set Z',
+    nova_ext: 'NOVA: air level per layer + acceleration (M200)', frame_nova: 'Frame with the NOVA (FF BD)', mode_roller: 'Roller rotary',
+    nova_setup: 'NOVA Wi-Fi and name (over USB)', wifi_scan: 'Find networks', wifi_pass: 'Wi-Fi password', wifi_join: 'Connect NOVA', dev_name: 'Device name', dev_rename: 'Rename',
+    wifi_found: '{n} networks found.', wifi_ok: 'NOVA joined the network – IP {ip}.', wifi_fail: 'The NOVA could not join the network.', rename_ok: 'Device renamed.', rename_fail: 'Rename failed.',
+    reset: 'Reset', confirm_reset: 'Reset the {name} counter? Do it only after replacing or cleaning the part.',
     h_jog: 'Jog (laser off)', step: 'Step mm', jogfeed: 'Feed mm/min', unlock: 'Unlock', focus: 'Autofocus', air_on: 'Air on', air_off: 'Air off',
     h_console: 'Console', send: 'Send', clear: 'Clear',
     footer: "Unofficial project, not affiliated with TOOCAA. Talks to the machine's Grbl_ESP32 controller directly; nothing leaves your computer.",
@@ -496,6 +526,12 @@ const T = {
     cam_click: 'Klikni na bod {n}/4: {name}', cam_done: 'Všechny 4 body jsou zadané – Uložit.', cam_need_cal: 'Nejdřív kameru zkalibruj.',
     cam_c1: 'vzadu vlevo (X0 Y0)', cam_c2: 'vzadu vpravo (X1 Y0)', cam_c3: 'vpředu vpravo (X1 Y1)', cam_c4: 'vpředu vlevo (X0 Y1)',
     cam_rot: 'Obraz z kamery je jen pro rovnou plochu.',
+    focus_pt: 'Umístit bod ostření', focus_pt_click: 'Klikni na plochu, kde má NOVA měřit.', focus_pt_at: 'Bod ostření X {x} Y {y} mm – přetažením ho posuneš.',
+    focus_need_pt: 'Nejdřív umísti bod ostření.', focus_done: 'Autofokus hotový – naměřená tloušťka {t} mm.', z_home: 'Z domů', thickness: 'Tloušťka materiálu mm', thick_set: 'Nastavit Z',
+    nova_ext: 'NOVA: ofuk podle vrstvy + akcelerace (M200)', frame_nova: 'Rámovat NOVOU (FF BD)', mode_roller: 'Válečkový rotační',
+    nova_setup: 'Wi-Fi a název NOVY (přes USB)', wifi_scan: 'Najít sítě', wifi_pass: 'Heslo k Wi-Fi', wifi_join: 'Připojit NOVU', dev_name: 'Název zařízení', dev_rename: 'Přejmenovat',
+    wifi_found: 'Nalezeno sítí: {n}.', wifi_ok: 'NOVA se připojila k síti – IP {ip}.', wifi_fail: 'NOVA se k síti nepřipojila.', rename_ok: 'Zařízení přejmenováno.', rename_fail: 'Přejmenování selhalo.',
+    reset: 'Vynulovat', confirm_reset: 'Vynulovat počítadlo „{name}“? Jen po výměně nebo vyčištění dílu.',
     h_jog: 'Posun (laser vyp.)', step: 'Krok mm', jogfeed: 'Rychlost mm/min', unlock: 'Odemknout', focus: 'Autofokus', air_on: 'Vzduch zap.', air_off: 'Vzduch vyp.',
     h_console: 'Konzole', send: 'Odeslat', clear: 'Vymazat',
     footer: 'Neoficiální projekt, nemá vztah k TOOCAA. Komunikuje přímo s řadičem Grbl_ESP32 ve stroji; nic neopouští tvůj počítač.',
@@ -519,6 +555,7 @@ function applyLang() {
   document.documentElement.lang = lang;
   $$('[data-i18n]').forEach(el => { el.textContent = t(el.dataset.i18n); });
   $$('[data-i18n-title]').forEach(el => { el.title = t(el.dataset.i18nTitle); });
+  $$('[data-i18n-ph]').forEach(el => { el.placeholder = t(el.dataset.i18nPh); });
   $$('[data-lang]').forEach(b => b.classList.toggle('on', b.dataset.lang === lang));
   $('#btnConnect').textContent = t(app.link ? 'disconnect' : 'connect');
   $('#btnPause').textContent = t(app.paused ? 'resume' : 'pause');
@@ -545,20 +582,23 @@ function firesLaser(lines) {
   return on && s;
 }
 // TOOCAA `FF xx` commands (TOOCAA Studio): one reply line with the same prefix, no ok
-const FF_READONLY = new Set(['FF F1', 'FF F2', 'FF R8']), FF_MOTION = new Set(['FF FB', 'FF FD', 'FF FC']);
-const FF_REPLY_TO = {'FF FB': 'FF S3'};
+const FF_READONLY = new Set(['FF F1', 'FF F2', 'FF R8', 'FF F3']), FF_MOTION = new Set(['FF FB', 'FF FD', 'FF FC']);
+const FF_LASER = new Set(['FF BD', 'FF BF']);          // NOVA framing – may trace with a low-power beam
+const FF_MAINT = new Set(['FF CW', 'FF F0', 'FF CN']); // consumable counters, Wi-Fi join, rename
+const FF_REPLY_TO = {'FF FB': 'FF S3'};  // Z home replies "FF S3 200" (home finished)
 const FF_ERRORS = {0: 'command not recognised', 1: 'device initialising', 2: 'device busy', 3: 'child lock', 4: 'job file parse error', 5: 'job file missing', 6: 'camera in use', 98: 'Z motor reset failed'};
 function classify(c) {
   c = c.trim(); const u = c.toUpperCase().replace(/\s+/g, ' ');
   if (!c || READONLY.has(u)) return 'readonly';
-  if (u.startsWith('FF ')) { const h = u.split(' ').slice(0, 2).join(' '); return FF_READONLY.has(u) ? 'readonly' : FF_MOTION.has(h) ? 'motion' : 'forbidden'; }
+  if (u.startsWith('FF ')) { const h = u.split(' ').slice(0, 2).join(' '); return FF_READONLY.has(u) ? 'readonly' : FF_MOTION.has(h) ? 'motion' : FF_LASER.has(h) ? 'laser' : FF_MAINT.has(h) ? 'maint' : 'forbidden'; }
   if (MOTION.has(u) || u.startsWith('$J=')) return 'motion';
   if (u.startsWith('$') || u.startsWith('[')) return 'forbidden';
   const w = words(c);
   if (!w.length) return 'readonly';
   return firesLaser([c]) || w.some(([k, v]) => k === 'S' && v > 0) ? 'laser' : 'motion';
 }
-const redact = l => /(pass|psk|token|key)/i.test(l) && l.includes('=') ? l.split('=')[0] + '=******' : l;
+const redact = l => /^FF F0 /i.test(l) && l.split(' ').length > 3 ? 'FF F0 ****** (Wi-Fi credentials hidden)'
+  : /(pass|psk|token|key)/i.test(l) && l.includes('=') ? l.split('=')[0] + '=******' : l;
 function parseStatus(line) {
   const parts = line.slice(1, -1).split('|');
   const [state, sub = ''] = parts[0].split(':');
@@ -775,6 +815,13 @@ class SimLink {
     const b64 = o => btoa(JSON.stringify(o)), busy = this.busy() || this.m.state !== 'Idle';
     if (u === 'FF F1') return ['FF F1 ' + b64({data: {toocaaNova: {SN: 'TCNVBA0000000000', version: 'V1.0.2'}, laser: {SN: 'TCNVFA0000000000', power: 20, version: '0.9.2', isOnline: true}, airAssist: {isOnline: true, version: '0.9.4'}, rotary: {isOnline: false}}})];
     if (u === 'FF F2') return ['FF F2 ' + b64({airPumpState: this.m.coolant ? 1 : 0, alarm: 'NONE', coverPlateState: 0, grblState: busy ? 1 : 0, inetractMode: 0, laserTemperature: 28, rotationPartState: 0, usbConnectState: 1, workState: busy ? 1 : 0})];
+    const h = u.split(/\s+/).slice(0, 2).join(' ');
+    if (h === 'FF FC') { this.head[2] = this.m.pos[2] = 12.5; return ['FF FC 200 3.0']; }  // measured thickness
+    if (h === 'FF BD' || h === 'FF BF') return [h + ' 200'];
+    if (h === 'FF F3') return ['FF F3 ' + b64([{ssid: 'Workshop', passwordRequired: true}, {ssid: 'Guest', passwordRequired: false}])];
+    if (h === 'FF F0') return ['FF F0 ' + btoa('192.168.1.50')];
+    if (h === 'FF CN') return ['FF CN 200'];
+    if (h === 'FF CW') return [];
     return ['FF ER 0'];
   }
   system(u) {
@@ -814,7 +861,7 @@ class SimLink {
         if (v === 38.2) { if (!m.check) { this.head[2] = m.pos[2] = 12.5; return [`[PRB:${this.head.map(x => x.toFixed(3)).join(',')}:1]`, 'ok']; } return ['ok']; }
         if ([0, 1, 2, 3].includes(v)) motion = v; else if (v === 90) abs = true; else if (v === 91) abs = false;
         else if (![17, 20, 21, 54, 94, 4, 92].includes(v)) return ['error:20'];
-      } else if (k === 'M') { if (![2, 3, 4, 5, 7, 8, 9, 30].includes(v)) return ['error:20']; }
+      } else if (k === 'M') { if (v === 200) return ['ok']; if (![2, 3, 4, 5, 7, 8, 9, 30].includes(v)) return ['error:20']; }
       else if ('XYZ'.includes(k)) { const i = 'XYZ'.indexOf(k); tgt[i] = abs ? v : tgt[i] + v; moved = true; }
       else if (k === 'A') { m.a = abs ? v : (m.a || 0) + v; }  // rotary axis: tracked, not drawn
       else if (!'SFIJPTN'.includes(k)) return ['error:20'];
@@ -905,7 +952,7 @@ class Grbl {
       const ffHead = /^FF /i.test(line) ? line.toUpperCase().split(/\s+/).slice(0, 2).join(' ') : null;
       const p = {cmd: line, ff: ffHead && (FF_REPLY_TO[ffHead] || ffHead), lines: [], resolve: v => { clearTimeout(to); resolve(v); }, reject: e => { clearTimeout(to); reject(e); }};
       this.pending = p;
-      if (!this.quiet) this.log('> ' + line, 'tx');
+      if (!this.quiet) this.log('> ' + redact(line), 'tx');
       this.write(line + '\n');
       to = setTimeout(() => { if (this.pending === p) { this.pending = null; reject(new Error('timeout: ' + line)); } }, timeout);
     });
@@ -979,7 +1026,8 @@ function refreshButtons() {
   $('#btnRun').disabled = !c || r || !hasJob || !app.perms.motion || !app.job.inBed;
   $('#btnPause').disabled = !r;
   $('#btnDownload').disabled = !hasJob;
-  $$('[data-jog],#btnHome,#btnUnlock,#btnFocus,#btnAirOn,#btnAirOff').forEach(b => b.disabled = !c || r || !app.perms.motion);
+  $$('[data-jog],#btnHome,#btnUnlock,#btnFocus,#btnAirOn,#btnAirOff,#zUp,#zDown,#zHome,#thickSet').forEach(b => b.disabled = !c || r || !app.perms.motion);
+  $$('#wifiScan,#wifiJoin,#devRename').forEach(b => b.disabled = !c || r);
   $('#btnHold').disabled = !c; $('#btnResume').disabled = !c;
   $('#btnSend').disabled = !c; $$('[data-q]').forEach(b => b.disabled = !c);
   $('#btnAcc').disabled = !c || r;
@@ -998,6 +1046,66 @@ function updateConnNote() {
 }
 
 // ---------------------------------------------------------------- connection
+// ---------------------------------------------------------------- focus point + autofocus + Z
+// TOOCAA Studio: `FF FC X<x> Y<y>` (rotary: `FF FC X<x> A<a> Y<pO>`) measures at a
+// point and replies `FF FC 200 <thickness mm>`. Z: `G91 G0 Z±d` (|d| ≤ 35),
+// thickness: `G90 G0 Z<35 − t>`.
+app.focusPt = null; app.focusPick = false;
+function focusNote() {
+  $('#focusNote').textContent = app.focusPick ? t('focus_pt_click') : app.focusPt ? t('focus_pt_at').replace('{x}', f3(app.focusPt.x)).replace('{y}', f3(app.focusPt.y)) : '';
+}
+async function autofocus() {
+  if (!noJog()) return gated('G38.2', 90000);  // stock Grbl / LightBurn profile macro
+  if (!app.focusPt) { log(t('focus_need_pt'), 'bad'); app.focusPick = true; focusNote(); return; }
+  const {x, y} = app.focusPt, fl = !isRot() && $('#origin').value === 'fl';
+  const c = isRot() ? `FF FC X${f3(x)} A${toA(y)} Y${f3(rotaryY(rotDia()))}` : `FF FC X${f3(x)} Y${f3(fl ? BED.h - y : y)}`;
+  const r = await gated(c, 120000); if (!r) return;
+  const th = parseFloat((r[0] || '').split(/\s+/)[3]);
+  if (isFinite(th)) $('#thick').value = th;
+  log(t('focus_done').replace('{t}', isFinite(th) ? th : '?'), 'ok');
+}
+async function moveZ(d) {
+  if (Math.abs(d) > 35) return;
+  if (await gated(`G91 G0 Z${f3(d)}`)) await gated('G90');
+}
+async function setThickness() {
+  const th = +$('#thick').value; if (!(th >= 0 && th <= 35)) { log('thickness 0–35 mm', 'bad'); return; }
+  await gated(`G90 G0 Z${f3(35 - th)}`);
+}
+
+// ---------------------------------------------------------------- maintenance, Wi-Fi, name (TOOCAA FF commands)
+const CONSUMABLE_CODES = {laserLens: 'C', machineFilter: 'Z', smokePurifier: 'G', focusModule: 'FM', coolingFan: 'CF', guideRail: 'GR', camera: 'CA'};
+async function resetConsumable(key) {
+  const g = app.grbl; if (!g || !CONSUMABLE_CODES[key]) return;
+  if (!confirm(t('confirm_reset').replace('{name}', t('wear_' + key)))) return;
+  const c = `FF CW ${CONSUMABLE_CODES[key]}4 1`;  // Studio: commands.reset
+  log('> ' + c, 'tx'); await g.write(c + '\n');      // Studio does not wait for a reply
+  await sleep(800); refreshDevice(false);
+}
+const b64utf8 = s => btoa(String.fromCharCode(...new TextEncoder().encode(s)));  // Studio pk()
+async function wifiScan() {
+  const r = await gated('FF F3', 30000); if (!r) return;
+  let list = [];
+  try { list = b64json(r).filter(n => n && n.ssid); } catch (e) { log('FF F3: ' + errText(e), 'bad'); }
+  const sel = $('#wifiList'); sel.textContent = '';
+  for (const n of list) { const o = document.createElement('option'); o.value = n.ssid; o.textContent = n.ssid + (n.passwordRequired ? ' 🔒' : ''); sel.append(o); }
+  $('#wifiNote').textContent = t('wifi_found').replace('{n}', list.length);
+}
+async function wifiJoin() {
+  const ssid = $('#wifiList').value; if (!ssid) return;
+  const r = await gated(`FF F0 ${b64utf8(ssid)} ${b64utf8($('#wifiPass').value)}`, 90000);
+  $('#wifiPass').value = '';
+  if (!r) return;
+  let ip = ''; try { ip = atob((r[0] || '').split(/\s+/)[2] || ''); } catch {}
+  $('#wifiNote').textContent = !ip || ip === 'FAIL' ? t('wifi_fail') : t('wifi_ok').replace('{ip}', ip);
+  if (ip && ip !== 'FAIL') { try { localStorage.setItem('tl-ip', ip); } catch {} if ($('#novaIp')) $('#novaIp').value = ip; }
+}
+async function devRename() {
+  const n = $('#devName').value.trim(); if (!n) return;
+  const r = await gated(`FF CN ${b64utf8(n)}`, 15000); if (!r) return;
+  $('#wifiNote').textContent = /FF CN 200/.test(r[0]) ? t('rename_ok') : t('rename_fail');
+}
+
 // ---------------------------------------------------------------- work mode (flat / chuck rotary)
 function applyWorkMode(save = true) {
   const rot = isRot();
@@ -1025,7 +1133,7 @@ async function refreshDevice(auto = false) {
   app.dev = {info, st}; renderAccessories();
   if (info && auto) {
     const rot = !!(info.rotary && info.rotary.isOnline);
-    if (rot) setWorkMode('chuck', t('rot_auto_on')); else setWorkMode('flat', t('rot_auto_off'));
+    if (rot) { if (!isRot()) setWorkMode('chuck', t('rot_auto_on')); } else setWorkMode('flat', t('rot_auto_off'));
     const pw = info.laser && info.laser.power;
     if (pw && $(`#module option[value="${pw}"]`)) { $('#module').value = String(pw); $('#module').dispatchEvent(new Event('change')); }
   }
@@ -1051,9 +1159,15 @@ function renderAccessories() {
   if (st) {
     const wear = Object.entries(st.consumables || {}).filter(([k, v]) => WEAR_HOURS[k] && (k !== 'smokePurifier' || v.added))
       .map(([k, v]) => `${t('wear_' + k)} ${Math.min(100, Math.round((v.wearTime || 0) / (WEAR_HOURS[k] * 36)))} %`).join(', ');
+    const wearBox = Object.keys(st.consumables || {}).filter(k => CONSUMABLE_CODES[k] && (k !== 'smokePurifier' || st.consumables[k].added));
     card(t('acc_state'), [
       ['', [st.coverPlateState ? t('lid_open') : t('lid_closed'), st.laserTemperature != null ? `${t('acc_temp')} ${st.laserTemperature} °C` : '', `${t('acc_air')} ${st.airPumpState ? 'on' : 'off'}`, st.alarm && st.alarm !== 'NONE' ? 'ALARM ' + st.alarm : ''].filter(Boolean).join(' · ')],
       [t('acc_wear'), wear]]);
+    if (wearBox.length) {
+      const row = document.createElement('div'); row.className = 'row'; row.style.cssText = 'border:0;padding:0;background:none';
+      for (const k of wearBox) { const b = document.createElement('button'); b.textContent = `${t('reset')} ${t('wear_' + k)}`; b.disabled = !app.grbl || app.running; b.onclick = () => resetConsumable(k); row.append(b); }
+      el.append(row);
+    }
   }
 }
 
@@ -1197,7 +1311,7 @@ async function connect() {
     if (rp) {
       const on = rp[1] !== '0';
       if (app.dev?.info?.rotary) { app.dev.info.rotary.isOnline = on; renderAccessories(); }
-      setWorkMode(on ? 'chuck' : 'flat', t(on ? 'rot_auto_on' : 'rot_auto_off'));
+      if (on) { if (!isRot()) setWorkMode('chuck', t('rot_auto_on')); } else setWorkMode('flat', t('rot_auto_off'));
     }
   };
   setPerms(false, false);
@@ -1754,9 +1868,9 @@ function objLines(o, S, F, YW) {
 function genJob() {
   if (!ed.objs.length) return [];
   const rot = isRot(), fl = !rot && $('#origin').value === 'fl', per = rotPer();
-  const YW = rot ? (y => `A${f3(y / per * 360)}`) : (y => `Y${f3(fl ? BED.h - y : y)}`);
-  const smax = +app.settings.$30 || 1000, air = $('#air').checked;
-  const L = ['; ToocaaLaser job', rot ? `; rotary (chuck) diameter ${rotDia()} mm, perimeter ${f3(per)} mm: Y -> A degrees`
+  const YW = rot ? (y => `A${toA(y)}`) : (y => `Y${f3(fl ? BED.h - y : y)}`);
+  const smax = +app.settings.$30 || 1000, air = $('#air').checked, ext = $('#novaExt').checked;
+  const L = ['; ToocaaLaser job', rot ? `; rotary (${$('#workMode').value}) diameter ${rotDia()} mm, perimeter ${f3(per)} mm: Y -> A degrees`
     : `; origin ${fl ? 'front-left' : 'rear-left'}, $30=${smax}`, 'G21 G90', 'M4 S0'];
   if (rot) {  // like TOOCAA Studio: park X at the left edge, then put the head on the axis line
     const b = groupBBox(ed.objs);
@@ -1768,9 +1882,14 @@ function genJob() {
     const pw = clamp(+o.power || 0, 0, 100), S = Math.round(pw / 100 * smax), F = clamp(Math.round(+o.speed || 1000), 60, 36000);
     const passes = clamp(Math.round(+o.passes || 1), 1, 20);
     L.push(`; ${o.name}: ${o.mode} ${pw}% ${F} mm/min x${passes}`);
+    if (ext) {  // TOOCAA Studio mk()/hk(): air pump level comment + acceleration per layer
+      const cut = o.mode === 'line' && pw >= 90, acc = o.mode === 'fill' ? 2000 : 1250;
+      L.push(`; air ${cut || F < 3000 ? 3 : pw < 50 ? 1 : 2}`, `M200 X${acc} Y${acc}`);
+    }
     const body = objLines(o, S, F, YW);
     for (let k = 0; k < passes; k++) for (const l of body) L.push(l);
   }
+  if (ext) L.push('M200 X1000 Y1000');
   L.push('M5 S0'); if (air) L.push('M9');
   if (rot) L.push(`G0 X0 Y${FLAT_BED.h}`);  // Studio's rotary end position (homeR)
   return L;
@@ -1780,7 +1899,7 @@ function analyse() {
   const segs = [], rapid = +app.settings.$110 || 12000, rot = isRot(), per = rotPer();
   let bx0 = Infinity, by0 = Infinity, bx1 = -Infinity, by1 = -Infinity, inBed = true;
   for (const raw of app.job.lines) {
-    const w = words(raw); if (!w.length) continue;
+    const w = words(raw); if (!w.length || w.some(([k, v]) => k === 'M' && v === 200)) continue;
     let nx = x, ny = y, mv = false;
     for (const [k, v] of w) {
       if (k === 'G') { if ([0, 1, 2, 3].includes(v)) mot = v; else if (v === 90) abs = true; else if (v === 91) abs = false; }
@@ -1788,7 +1907,7 @@ function analyse() {
       else if (k === 'S') s = v; else if (k === 'F') f = v;
       else if (k === 'X') { nx = abs ? v : x + v; mv = true; }
       else if (k === 'Y') { if (!rot) { ny = abs ? v : y + v; mv = true; } }  // rotary: machine Y stays on the axis
-      else if (k === 'A' && rot) { const d = v / 360 * per; ny = abs ? d : y + d; mv = true; }
+      else if (k === 'A' && rot) { const d = $('#workMode').value === 'roller' ? -v * (16 * Math.PI / 32) : v / 360 * per; ny = abs ? d : y + d; mv = true; }
     }
     if (mv) {
       const on = !!(sp && s > 0 && mot !== 0), d = Math.hypot(nx - x, ny - y);
@@ -2086,6 +2205,13 @@ function drawNow() {
     x.strokeStyle = col('--head'); x.lineWidth = 1.5; x.beginPath();
     x.arc(hx, hy, 6, 0, Math.PI * 2); x.moveTo(hx - 10, hy); x.lineTo(hx + 10, hy); x.moveTo(hx, hy - 10); x.lineTo(hx, hy + 10); x.stroke();
   }
+  if (app.focusPt) {  // autofocus point (plate coordinates)
+    const fx = app.focusPt.x * k, fy = app.focusPt.y * k;
+    x.strokeStyle = '#f97316'; x.fillStyle = '#f97316'; x.lineWidth = 2; x.beginPath();
+    x.arc(fx, fy, 7, 0, Math.PI * 2); x.moveTo(fx - 12, fy); x.lineTo(fx - 3, fy); x.moveTo(fx + 3, fy); x.lineTo(fx + 12, fy);
+    x.moveTo(fx, fy - 12); x.lineTo(fx, fy - 3); x.moveTo(fx, fy + 3); x.lineTo(fx, fy + 12); x.stroke();
+    x.font = '10px system-ui'; x.fillText('F', fx + 9, fy - 8);
+  }
   // selection
   if (!app.raw && ed.selSet.size) {
     const sel = col('--sel'), list = selList();
@@ -2130,6 +2256,8 @@ function handleAt(p) {
 function onPointerDown(e) {
   if (app.raw) return;
   const p = evMM(e), h = handleAt(p);
+  if (app.focusPick) { app.focusPt = {x: clamp(p.x, 0, BED.w), y: clamp(p.y, 0, BED.h)}; app.focusPick = false; focusNote(); draw(); return; }
+  if (app.focusPt && Math.hypot(app.focusPt.x - p.x, app.focusPt.y - p.y) * p.k < 9) { drag = {type: 'focus'}; return; }
   if (h) drag = {type: h, snap: snapshot(), o: ed.sel, o0: {...ed.sel}, g0: geom(ed.sel), start: p};
   else {
     const cands = candidatesAt(p), add = e.shiftKey || e.ctrlKey || e.metaKey;
@@ -2156,6 +2284,7 @@ function onPointerDown(e) {
 }
 function onPointerMove(e) {
   const p = evMM(e), cv = $('#bed');
+  if (drag && drag.type === 'focus') { app.focusPt = {x: clamp(p.x, 0, BED.w), y: clamp(p.y, 0, BED.h)}; focusNote(); draw(); return; }
   if (!drag) {
     const h = handleAt(p);
     cv.style.cursor = h === 'scale' ? 'nwse-resize' : h === 'rotate' ? 'grab' : ed.objs.some(o => !o.locked && inBox(o, p, 0)) ? 'move' : 'default';
@@ -2187,6 +2316,7 @@ function onPointerMove(e) {
 function onPointerUp() {
   if (!drag) return;
   const d = drag; drag = null;
+  if (d.type === 'focus') return;
   if (d.type === 'marquee') {
     const x0 = Math.min(d.start.x, d.cur.x), x1 = Math.max(d.start.x, d.cur.x), y0 = Math.min(d.start.y, d.cur.y), y1 = Math.max(d.start.y, d.cur.y);
     if ((x1 - x0) * d.start.k > 3 || (y1 - y0) * d.start.k > 3)
@@ -2225,7 +2355,8 @@ function onKey(e) {
 async function runJob(check) {
   const g = app.grbl; if (!g) return;
   regenerate();
-  const prog = app.job.lines.map(cleanLine).filter(Boolean);
+  const keep = l => /^;\s*air\s+[123]\s*$/i.test(l.trim());  // NOVA air level, sent as is
+  const prog = app.job.lines.map(l => keep(l) ? l.trim() : cleanLine(l)).filter(Boolean);
   if (!prog.length) return log(t('no_job'), 'bad');
   if (prog.some(l => /^[$\[]/.test(l) || /[?!~]/.test(l))) return log('job contains $ / [ESP] / real-time characters – refused', 'bad');
   const fires = firesLaser(prog);
@@ -2279,7 +2410,7 @@ async function frameRotary(b, f) {
   let st; try { st = await app.grbl.status(); } catch (e) { log(errText(e), 'bad'); return; }
   if (st.state !== 'Idle') { log('frame needs Idle, machine is ' + st.state, 'bad'); return; }
   if (b.x0 < 0 || b.x1 > FLAT_BED.w) { log('frame X outside the bed – not sent', 'bad'); return; }
-  const per = rotPer(), A = y => f3(y / per * 360);
+  const A = toA;
   const cmds = [`G90 G21 G1 X${f3(b.x0)} Y${f3(rotaryY(rotDia()))} F${f} S0`];
   for (const [x, y] of [[b.x0, b.y0], [b.x1, b.y0], [b.x1, b.y1], [b.x0, b.y1], [b.x0, b.y0]]) cmds.push(`G90 G1 X${f3(x)} A${A(y)} F${f} S0`);
   for (const c of cmds) if (!(await gated(c))) return;
@@ -2288,6 +2419,11 @@ async function frame() {
   regenerate();
   const b = app.job.bounds; if (!b || !app.grbl) return;
   const f = +$('#jogFeed').value || 3000;
+  if ($('#frameNova').checked && noJog()) {  // the NOVA traces the outline itself (TOOCAA Studio)
+    const fl = !isRot() && $('#origin').value === 'fl', Y = y => f3(fl ? BED.h - y : y);
+    const c = isRot() ? `FF BD X${f3(b.x0)} A${toA(b.y0)} X${f3(b.x1)} A${toA(b.y1)} D${rotDia()}` : `FF BD X${f3(b.x0)} Y${Y(b.y0)} X${f3(b.x1)} Y${Y(b.y1)}`;
+    await gated(c, 180000); return;
+  }
   if (isRot()) return frameRotary(b, f);
   for (const [x, y] of [[b.x0, b.y0], [b.x1, b.y0], [b.x1, b.y1], [b.x0, b.y1], [b.x0, b.y0]])
     if (!(await moveHead(x, y, false, f))) return;
@@ -2354,7 +2490,16 @@ $('#allowLaser').addEventListener('change', e => {
 });
 $$('[data-jog]').forEach(b => b.addEventListener('click', () => { const [dx, dy] = b.dataset.jog.split(',').map(Number); jog(dx, $('#origin').value === 'fl' ? dy : -dy); }));
 $('#btnHome').addEventListener('click', () => gated('$H', 120000));
-$('#btnFocus').addEventListener('click', () => gated('G38.2', 90000));
+$('#btnFocus').addEventListener('click', autofocus);
+$('#btnFocusPt').addEventListener('click', () => { app.focusPick = !app.focusPick; focusNote(); });
+$('#zUp').addEventListener('click', () => moveZ(+$('#zStep').value));
+$('#zDown').addEventListener('click', () => moveZ(-$('#zStep').value));
+$('#zHome').addEventListener('click', () => gated('$HZ', 60000));
+$('#thickSet').addEventListener('click', setThickness);
+$('#novaExt').addEventListener('change', regenerate);
+$('#wifiScan').addEventListener('click', wifiScan);
+$('#wifiJoin').addEventListener('click', wifiJoin);
+$('#devRename').addEventListener('click', devRename);
 $('#btnAirOn').addEventListener('click', () => gated('M8'));
 $('#btnAirOff').addEventListener('click', () => gated('M9'));
 $('#btnUnlock').addEventListener('click', async () => { const s = app.grbl.last; if (s && s.state !== 'Alarm') return log('not in Alarm – nothing to unlock', 'sys'); if (await gated('$X')) log('unlocked – position may be wrong, home before a job', 'msg'); });

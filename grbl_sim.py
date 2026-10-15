@@ -275,6 +275,8 @@ class Machine:
                 else:
                     return ["error:20"]
             elif l == "M":
+                if v == 200:  # NOVA acceleration `M200 X.. Y..` (TOOCAA Studio)
+                    return ["ok"]
                 if v in (3, 4, 5, 8, 9, 2, 30, 7):
                     pass
                 else:
