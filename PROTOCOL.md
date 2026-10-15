@@ -159,7 +159,6 @@ answers them, but they're not needed.
 | `$C` check mode | `error:3`. ToocaaLaser checks offline with its simulator | `[MSG:Enabled]` |
 | `$J=` jogging | `error:3` (Studio has no X/Y jog either, only `G91 G0 Z…`) | jog |
 | status report | 4 axes `MPos:x,y,z,a` (A = rotary), `Pn:XY` when idle | 3 axes |
-| ✅ Y in the status report | **mirrored**: `Y = 210 − Y_command`. At home (rear-left) it reports Y 210, while G-code / `FF FC` Y 0 is the rear edge and Y grows towards the front (Studio ends a flat job with `G0 X0Y0` = home) | same frame as G-code |
 | lid | `FF LD 1` / `FF LD 0` sent unprompted when the lid opens or closes | – |
 
 Without `$J=`, ToocaaLaser moves the head with `G91 G21 G1 X… Y… F… S0` and then

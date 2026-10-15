@@ -36,9 +36,7 @@ Recorded on a real NOVA over USB (firmware V1.0.2, see PROTOCOL.md):
   * `$J=` jogging -> error:3. `jog` falls back to `G91 G1 … S0` + `G90`
     and checks the target against the bed itself (the NOVA has $20=0, no
     soft limits). TOOCAA Studio has no X/Y jog at all.
-  * status reports have 4 axes (X,Y,Z,A – A = rotary) and **Y mirrored**: the
-    report says Y=210 at home (rear-left) where G-code / FF FC use Y=0
-    (Studio ends a flat job with `G0 X0Y0` = home). work_pos() converts.
+  * status reports have 4 axes (X,Y,Z,A – A = rotary).
 Run `probe` and `info` first – both are read-only.
 
 Safety model (the firmware's own interlocks are never bypassed):
@@ -837,16 +835,11 @@ class Nova:
         return self._travel
 
     def work_pos(self, st: Status) -> tuple:
-        """Position in the G-code frame (the NOVA reports Y mirrored)."""
         if st.wpos:
-            p = tuple(st.wpos)
-        elif st.mpos:
-            p = tuple(m - (self.wco[i] if i < len(self.wco) else 0.0) for i, m in enumerate(st.mpos))
-        else:
-            return (0.0, 0.0)
-        if self.ok_after_status and len(p) > 1:
-            p = (p[0], WORK_AREA_MM[1] - p[1]) + p[2:]
-        return p
+            return st.wpos
+        if st.mpos:
+            return tuple(m - (self.wco[i] if i < len(self.wco) else 0.0) for i, m in enumerate(st.mpos))
+        return (0.0, 0.0)
 
     def stream(self, lines: list[str], check_only: bool = False,
                progress=None, poll_every: float = 0.5) -> int:

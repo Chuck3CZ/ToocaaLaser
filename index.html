@@ -846,8 +846,7 @@ class SimLink {
     if (m.held) st = 'Hold:0'; else if (!m.check && this.busy()) st = m.state === 'Jog' ? 'Jog' : 'Run';
     const on = mv && mv.laser && !m.held;
     let acc = (m.spindle === 3 ? 'S' : m.spindle === 4 ? 'C' : '') + m.coolant;
-    const c = this.cur(), rep = [c[0], FLAT_BED.h - c[1], c[2]];  // reported like the NOVA: Y mirrored
-    return `<${st}|MPos:${rep.map(v => v.toFixed(3)).join(',')}|FS:${mv && !m.held ? Math.round(mv.feed) : 0},${on ? Math.round(mv.s) : 0}${acc ? '|A:' + acc : ''}>`;
+    return `<${st}|MPos:${this.cur().map(v => v.toFixed(3)).join(',')}|FS:${mv && !m.held ? Math.round(mv.feed) : 0},${on ? Math.round(mv.s) : 0}${acc ? '|A:' + acc : ''}>`;
   }
   tick() {
     const now = performance.now(); let dt = (now - this.last) / 1000 * this.speed; this.last = now;
@@ -985,10 +984,6 @@ class Grbl {
       const st = parseStatus(line);
       if (st.wco) this.wco = st.wco;
       st.pos = st.wpos || (st.mpos && st.mpos.map((v, i) => v - (this.wco[i] || 0)));
-      // The NOVA reports Y mirrored: 210 at home (rear-left), 0 at the front, while
-      // G-code and FF FC use 0 = rear (TOOCAA Studio's frame; a flat job ends with
-      // G0 X0Y0 = home). Bring the report into the command frame.
-      if (st.pos && this.okAfterStatus === true) st.pos = [st.pos[0], FLAT_BED.h - st.pos[1], ...st.pos.slice(2)];
       this.last = st; this.waiters.splice(0).forEach(f => f(st)); this.onStatus(st);
       return;
     }
@@ -3131,7 +3126,7 @@ navigator.mediaDevices?.addEventListener?.('devicechange', () => camList().catch
 camList().catch(() => {});
 try { const r = JSON.parse(localStorage.getItem('tl-rot') || 'null'); if (r) { $('#workMode').value = r.mode === 'chuck' ? 'chuck' : 'flat'; if (r.d) $('#diameter').value = r.d; } } catch {}
 // ---- version: the build stamp of this file + the newest index.html commit on GitHub
-const APP_BUILD = '2026-10-15 14:37';
+const APP_BUILD = '2026-10-15 14:40';
 (async () => {
   const el = $('#appVer'); el.textContent = 'build ' + APP_BUILD;
   try {

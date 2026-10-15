@@ -14,8 +14,7 @@ on the 297 x 210 mm bed are always on (target outside -> ALARM:2).
 NOVA quirks recorded from a real machine over USB (2026-10, firmware V1.0.2,
 see PROTOCOL.md) are on by default, `--stock-grbl` turns them off:
   * `?` is answered with the status report **and an extra `ok`**;
-  * status reports carry 4 axes (X,Y,Z,A) and `Pn:XY`, and Y is mirrored:
-    the report says 210 where G-code Y is 0 (home, rear-left);
+  * status reports carry 4 axes (X,Y,Z,A) and `Pn:XY`;
   * `$G` -> error:3, `$#` -> error:1, `$J=` (jogging) and `$C` (check) -> error:3;
   * `FF F1` / `FF F2` / `FF R8` reply with one `FF xx ...` line and no `ok`
     (F1/F2 payload = base64 JSON).
@@ -112,11 +111,8 @@ class Machine:
             acc += "C"
         acc += self.coolant
         on = self.spindle and st.startswith("Run")
-        x, y, z = self.pos
-        if self.nova:
-            y = self.h - y  # the NOVA reports Y mirrored (210 at home, rear-left)
         line = "<%s|MPos:%.3f,%.3f,%.3f%s|FS:%.0f,%.0f" % (
-            st, x, y, z, ",0.000" if self.nova else "",
+            st, *self.pos, ",0.000" if self.nova else "",
             self.f if on else 0, self.s if self.spindle else 0)
         if acc:
             line += "|A:" + acc
