@@ -43,7 +43,7 @@ class TestReadOnly(SimCase):
     def test_status(self):
         st = self.connect().status()
         self.assertEqual(st.state, "Idle")
-        self.assertEqual(st.mpos, (0.0, 0.0, 0.0, 0.0))  # X,Y,Z,A
+        self.assertEqual(st.mpos, (0.0, 210.0, 0.0, 0.0))  # X,Y,Z,A – NOVA reports Y mirrored
 
     def test_motion_refused_without_flag(self):
         n = self.connect()
@@ -75,7 +75,8 @@ class TestMotion(SimCase):
         n = self.connect(motion=True)
         n.jog(10, 5, 1500)
         st = n.wait_idle(5)
-        self.assertEqual(st.mpos[:2], (10.0, 5.0))
+        self.assertEqual(n.work_pos(st)[:2], (10.0, 5.0))
+        self.assertEqual(st.mpos[:2], (10.0, 205.0))  # as the NOVA reports it
         self.assertEqual(self.m.burn, [])
 
     def test_jog_outside_bed_is_rejected_by_controller(self):
@@ -88,18 +89,20 @@ class TestMotion(SimCase):
     def test_nova_jog_falls_back_to_gcode_move(self):
         n = self.connect(motion=True)       # NOVA: $J= -> error:3
         n.jog(10, 5, 1500)
-        self.assertEqual(n.wait_idle(5).mpos[:2], (10.0, 5.0))
+        self.assertEqual(n.work_pos(n.wait_idle(5))[:2], (10.0, 5.0))
         self.assertTrue(n.no_jog)
         self.assertIn("G91 G21 G1 X10.000 Y5.000 F1500 S0", self.m.history)
         self.assertEqual(self.m.burn, [])
         n.jog(-3, 0)                         # back in G90 afterwards
-        self.assertEqual(n.wait_idle(5).mpos[:2], (7.0, 5.0))
+        self.assertEqual(n.work_pos(n.wait_idle(5))[:2], (7.0, 5.0))
         self.assertTrue(self.m.absolute)
 
     def test_nova_jog_outside_bed_refused_by_client(self):
         n = self.connect(motion=True)
         with self.assertRaises(nova.NotAllowed):
             n.jog(-5, 0)
+        with self.assertRaises(nova.NotAllowed):  # from home, Y- would go past the rear edge
+            n.jog(0, -5)
         self.assertEqual(self.m.state, "Idle")
 
     def test_jog_step_limit(self):
