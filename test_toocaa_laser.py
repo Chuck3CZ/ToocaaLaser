@@ -96,6 +96,14 @@ class TestMotion(SimCase):
         self.assertEqual(n.wait_idle(5).mpos[:2], (7.0, 5.0))
         self.assertTrue(self.m.absolute)
 
+    def test_nova_jog_from_outside_after_home(self):
+        n = self.connect(motion=True)
+        self.m.pos = [-0.67, -7.02, 0.0]          # where $H leaves the real NOVA
+        n.jog(10, 0)                              # sideways is fine although Y < 0
+        n.jog(0, 5)                               # towards the bed is fine
+        with self.assertRaises(nova.NotAllowed):
+            n.jog(0, -5)                          # further out is refused
+
     def test_nova_jog_uses_machine_travel(self):
         n = self.connect(motion=True)
         self.assertEqual(n.travel(), (300.0, 220.0))  # $130 / $131 of the real NOVA

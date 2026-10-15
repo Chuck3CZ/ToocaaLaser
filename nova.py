@@ -814,7 +814,10 @@ class Nova:
         pos = self.work_pos(st)
         tx, ty = (pos[0] + x, pos[1] + y) if relative else (x, y)
         tw, th = self.travel()
-        if not (-1e-6 <= tx <= tw + 1e-6 and -1e-6 <= ty <= th + 1e-6):
+
+        def out(v, cur, mx):  # only a step further outside counts ($H parks slightly outside)
+            return (v < -1e-6 and v < cur - 1e-6) or (v > mx + 1e-6 and v > cur + 1e-6)
+        if (x or not relative) and out(tx, pos[0], tw) or (y or not relative) and out(ty, pos[1], th):
             raise NotAllowed("target X%.1f Y%.1f is outside the machine travel %gx%g mm"
                              % (tx, ty, tw, th))
         try:

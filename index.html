@@ -867,7 +867,7 @@ class SimLink {
     const d = Math.hypot(to[0] - from[0], to[1] - from[1], to[2] - from[2]);
     this.planner.push({from, to: to.slice(), dur: d / Math.max(feed, 1) * 60, el: 0, laser, s, feed});
   }
-  inBed(p) { return p[0] >= 0 && p[0] <= +SIM_SETTINGS[130] && p[1] >= 0 && p[1] <= +SIM_SETTINGS[131]; }  // NOVA travel 300 × 220
+  inBed(p) { return p[0] >= -10 && p[0] <= +SIM_SETTINGS[130] && p[1] >= -10 && p[1] <= +SIM_SETTINGS[131]; }  // NOVA travel 300 × 220, $H pull-off below 0
   line(raw) {
     const m = this.m, ln = cleanLine(raw);
     if (!ln) return ['ok'];
@@ -1473,8 +1473,10 @@ async function moveHead(x, y, rel, f) {
   const p = st.pos;
   if (rel && !p) { log('no position report yet', 'bad'); return false; }
   const tx = rel ? p[0] + (x || 0) : x ?? p?.[0] ?? 0, ty = rel ? p[1] + (y || 0) : y ?? p?.[1] ?? 0;
-  const T = travel();
-  if (tx < -1e-6 || tx > T.w + 1e-6 || ty < -1e-6 || ty > T.h + 1e-6) {
+  // Only the moved axes are checked, and only a step further outside counts: after
+  // $H the NOVA sits slightly outside (e.g. X −0.7 Y −7, the switch pull-off).
+  const T = travel(), out = (v, cur, max) => (v < -1e-6 && v < cur - 1e-6) || (v > max + 1e-6 && v > cur + 1e-6);
+  if ((x != null && out(tx, p ? p[0] : 0, T.w)) || (y != null && out(ty, p ? p[1] : 0, T.h))) {
     log(`target X${f3(tx)} Y${f3(ty)} is outside the machine travel ${T.w} × ${T.h} mm – not sent`, 'bad'); return false;
   }
   try { await g.cmd(`${rel ? 'G91' : 'G90'} G21 G1 ${w} F${f} S0`); return true; }
@@ -3130,7 +3132,7 @@ navigator.mediaDevices?.addEventListener?.('devicechange', () => camList().catch
 camList().catch(() => {});
 try { const r = JSON.parse(localStorage.getItem('tl-rot') || 'null'); if (r) { $('#workMode').value = r.mode === 'chuck' ? 'chuck' : 'flat'; if (r.d) $('#diameter').value = r.d; } } catch {}
 // ---- version: the build stamp of this file + the newest index.html commit on GitHub
-const APP_BUILD = '2026-10-15 14:41';
+const APP_BUILD = '2026-10-15 14:45';
 (async () => {
   const el = $('#appVer'); el.textContent = 'build ' + APP_BUILD;
   try {

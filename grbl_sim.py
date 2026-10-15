@@ -293,7 +293,9 @@ class Machine:
                 return ["error:20"]
         if moved and motion == 1 and not any(l == "F" for l, _ in words) and self.f <= 0:
             return ["error:22"]
-        if moved and not (0 <= target[0] <= self.w and 0 <= target[1] <= self.h):
+        # the NOVA travels 300 x 220 and $H leaves it slightly outside (pull-off ~ -7 mm)
+        lo, wx, hy = (-10.0, float(SETTINGS[130]), float(SETTINGS[131])) if self.nova else (0.0, self.w, self.h)
+        if moved and not (lo <= target[0] <= wx and lo <= target[1] <= hy):
             if self.check:
                 return ["error:15"]
             self.state = "Alarm"
