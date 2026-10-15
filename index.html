@@ -362,6 +362,7 @@ details summary{cursor:pointer;color:var(--mut);font-size:12.5px}
     <div class="row">
       <button id="camShot" data-i18n="cam_shot" disabled>Photo to bed</button>
       <button id="camCal" data-i18n="cam_cal" disabled>Calibrate</button>
+      <button id="camCross" data-i18n="cam_cross" title="4 crosses at X20 Y20 / X277 Y20 / X277 Y190 / X20 Y190">Calibration crosses</button>
       <label class="check"><input type="checkbox" id="camShow" checked><span data-i18n="cam_show">Show</span></label>
       <input type="range" id="camAlpha" min="0.15" max="1" step="0.05" value="0.8" aria-label="opacity" style="width:90px">
     </div>
@@ -502,6 +503,7 @@ const T = {
     cam_click: 'Click point {n}/4: {name}', cam_done: 'All 4 points set – Save.', cam_need_cal: 'Calibrate the camera first.',
     cam_c1: 'rear-left (X0 Y0)', cam_c2: 'rear-right (X1 Y0)', cam_c3: 'front-right (X1 Y1)', cam_c4: 'front-left (X0 Y1)',
     cam_rot: 'The camera overlay is only for the flat bed.',
+    cam_cross: 'Calibration crosses', cam_cross_added: 'Added 4 crosses at X20 Y20, X277 Y20, X277 Y190, X20 Y190. Burn them on paper or cardboard (Start job), leave it in place, then Calibrate and click the 4 cross centres. The reference numbers are already filled in.',
     focus_pt: 'Place focus point', focus_pt_click: 'Click the plate where the NOVA should measure.', focus_pt_at: 'Focus point X {x} Y {y} mm – drag it to move.',
     focus_need_pt: 'Place a focus point first.', focus_done: 'Autofocus done – measured thickness {t} mm.', z_home: 'Z home', thickness: 'Material thickness mm', thick_set: 'Set Z',
     nova_ext: 'NOVA: air level per layer + acceleration (M200)', frame_nova: 'Frame with the NOVA (FF BD)', mode_roller: 'Roller rotary',
@@ -580,6 +582,7 @@ const T = {
     cam_click: 'Klikni na bod {n}/4: {name}', cam_done: 'Všechny 4 body jsou zadané – Uložit.', cam_need_cal: 'Nejdřív kameru zkalibruj.',
     cam_c1: 'vzadu vlevo (X0 Y0)', cam_c2: 'vzadu vpravo (X1 Y0)', cam_c3: 'vpředu vpravo (X1 Y1)', cam_c4: 'vpředu vlevo (X0 Y1)',
     cam_rot: 'Obraz z kamery je jen pro rovnou plochu.',
+    cam_cross: 'Kalibrační kříže', cam_cross_added: 'Přidány 4 kříže na X20 Y20, X277 Y20, X277 Y190, X20 Y190. Vypal je na papír nebo karton (Spustit úlohu), nech ho ležet, pak dej Kalibrovat a klikni na středy 4 křížů. Čísla referenčního obdélníku jsou už vyplněná.',
     focus_pt: 'Umístit bod ostření', focus_pt_click: 'Klikni na plochu, kde má NOVA měřit.', focus_pt_at: 'Bod ostření X {x} Y {y} mm – přetažením ho posuneš.',
     focus_need_pt: 'Nejdřív umísti bod ostření.', focus_done: 'Autofokus hotový – naměřená tloušťka {t} mm.', z_home: 'Z domů', thickness: 'Tloušťka materiálu mm', thick_set: 'Nastavit Z',
     nova_ext: 'NOVA: ofuk podle vrstvy + akcelerace (M200)', frame_nova: 'Rámovat NOVOU (FF BD)', mode_roller: 'Válečkový rotační',
@@ -1343,7 +1346,8 @@ const CAM_NAMES = ['cam_c1', 'cam_c2', 'cam_c3', 'cam_c4'];
 function camCalStart() {
   try { CAM.und = camGrab(); } catch (e) { log('camera: ' + errText(e), 'bad'); return; }
   CAM.pts = []; $('#camCalBox').classList.remove('hidden');
-  if (CAM.cal) ['calX0', 'calY0', 'calX1', 'calY1'].forEach((id, i) => { $('#' + id).value = CAM.cal.ref[i]; });
+  let ref = CAM.cal && CAM.cal.ref; try { const r = localStorage.getItem('tl-calref'); if (r) ref = r.split(',').map(Number); } catch {}
+  if (ref) ['calX0', 'calY0', 'calX1', 'calY1'].forEach((id, i) => { $('#' + id).value = ref[i]; });
   camCalDraw();
 }
 function camCalDraw() {
@@ -1357,6 +1361,19 @@ function camCalDraw() {
   const n = CAM.pts.length;
   $('#camCalNote').textContent = n < 4 ? t('cam_click').replace('{n}', n + 1).replace('{name}', t(CAM_NAMES[n])) : t('cam_done');
   $('#camCalSave').disabled = n !== 4;
+}
+// Calibration from marks the machine burns itself: then a click in the photo is a
+// real machine coordinate, so the focus point / FF FC lands exactly there.
+const CAL_PTS = [[20, 20], [277, 20], [277, 190], [20, 190]], CAL_ARM = 5;
+function addCalCrosses() {
+  const polys = [];
+  for (const [cx, cy] of CAL_PTS) polys.push([[cx - CAL_ARM, cy], [cx + CAL_ARM, cy]], [[cx, cy - CAL_ARM], [cx, cy + CAL_ARM]]);
+  const o = vectorAt(polys, t('cam_cross'), {mode: 'line', power: 20, speed: 3000, passes: 1, interval: 0.1});
+  if (isRot()) setWorkMode('flat');
+  addObj(o);
+  ['calX0', 'calY0', 'calX1', 'calY1'].forEach((id, i) => { $('#' + id).value = [20, 20, 277, 190][i]; });
+  try { localStorage.setItem('tl-calref', '20,20,277,190'); } catch {}
+  log(t('cam_cross_added'), 'ok');
 }
 function camCalSave() {
   const ref = ['calX0', 'calY0', 'calX1', 'calY1'].map(id => +$('#' + id).value);
@@ -3118,6 +3135,7 @@ $('#btnAcc').addEventListener('click', () => refreshDevice(false));
 $('#camStart').addEventListener('click', camStart);
 $('#camShot').addEventListener('click', camShot);
 $('#camCal').addEventListener('click', camCalStart);
+$('#camCross').addEventListener('click', addCalCrosses);
 $('#camShow').addEventListener('change', draw);
 $('#camAlpha').addEventListener('input', draw);
 $('#camCalReset').addEventListener('click', () => { CAM.pts = []; camCalDraw(); });
@@ -3132,7 +3150,7 @@ navigator.mediaDevices?.addEventListener?.('devicechange', () => camList().catch
 camList().catch(() => {});
 try { const r = JSON.parse(localStorage.getItem('tl-rot') || 'null'); if (r) { $('#workMode').value = r.mode === 'chuck' ? 'chuck' : 'flat'; if (r.d) $('#diameter').value = r.d; } } catch {}
 // ---- version: the build stamp of this file + the newest index.html commit on GitHub
-const APP_BUILD = '2026-10-15 14:45';
+const APP_BUILD = '2026-10-15 14:48';
 (async () => {
   const el = $('#appVer'); el.textContent = 'build ' + APP_BUILD;
   try {
