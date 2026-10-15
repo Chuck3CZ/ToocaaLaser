@@ -257,6 +257,23 @@ crops to the work area and places the result under the design.
 `FF PT` photos. ToocaaLaser does the same in `index.html`: lens correction
 on the CPU and a homography from 4 clicked points, stored in `localStorage`.
 
+## 9. 📄 More TOOCAA Studio commands that ToocaaLaser now uses
+
+| Function | Command | Reply |
+|---|---|---|
+| autofocus at a point | `FF FC X<x> Y<y>` (rotary `FF FC X<x> A<a> Y<pO>`) | `FF FC 200 <thickness mm>` |
+| frame by the NOVA | `FF BD X<x0> Y<y0> X<x1> Y<y1>` | `FF BD …` when done |
+| Z jog / thickness / home | `G91 G0 Z±d` / `G90 G0 Z<35−t>` / `$HZ` | `ok` |
+| Wi-Fi scan | `FF F3` | `FF F3 <base64 JSON [{ssid, passwordRequired}]>` |
+| join Wi-Fi | `FF F0 <base64 ssid> <base64 password>` | `FF F0 <base64 IP or "FAIL">` |
+| rename | `FF CN <base64 name>` | `FF CN 200` / `FF CN 500` |
+| consumable reset | `FF CW <C|Z|G|FM|CF|GR|CA>4 1` | (Studio doesn't wait) |
+| air level, per layer | comment line `; air 1|2|3` | `ok` |
+| acceleration, per layer | `M200 X<a> Y<a>` (1250 line, 2000 fill, 1000 at the end) | `ok` |
+
+The strings are encoded with UTF-8 base64 (Studio's `pk()`). None of these has
+been recorded on the machine yet.
+
 ## Still to verify on the machine
 
 1. `python3 nova.py probe <IP>`: port 8002 open, what `/v1/deviceInfo` returns.
