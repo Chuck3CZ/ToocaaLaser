@@ -520,7 +520,7 @@ const T = {
     need_two: 'Select at least two shapes.', need_vec: 'Select rectangles, circles or vectors.', qr_prompt: 'Text or link for the QR code:', shape_empty: 'The result is empty.',
     nova_env: 'Job on the NOVA screen (pause / stop there too)', dev_paused: 'Paused on the NOVA.', dev_resumed: 'Resumed on the NOVA.',
     dev_stopped: 'Stopped on the NOVA.', dev_done: 'The NOVA reports the job finished.',
-    ver_new: 'newer version on GitHub – reload (Ctrl+Shift+R)', air_job_only: 'The NOVA runs the air pump only during a job (Job → Air assist).',
+    ver_new: 'newer version on GitHub – reload (Ctrl+Shift+R)', air_job: 'on (job)', dev_working: 'working', air_job_only: 'The NOVA runs the air pump only during a job (Job → Air assist).',
     ui_simple: 'Simple', ui_expert: 'Expert', th_auto: 'Theme: follow the system', th_light: 'Light theme', th_dark: 'Dark theme',
     confirm_motion: 'Allow the machine to move?\n\nKeep hands out of the machine and the lid closed.',
     h_jog: 'Jog (laser off)', step: 'Step mm', jogfeed: 'Feed mm/min', unlock: 'Unlock', focus: 'Autofocus', air_on: 'Air on', air_off: 'Air off',
@@ -600,7 +600,7 @@ const T = {
     need_two: 'Vyber aspoň dva tvary.', need_vec: 'Vyber obdélníky, kruhy nebo vektory.', qr_prompt: 'Text nebo odkaz pro QR kód:', shape_empty: 'Výsledek je prázdný.',
     nova_env: 'Úloha na displeji NOVY (pauza a stop i tam)', dev_paused: 'Pozastaveno na NOVĚ.', dev_resumed: 'Pokračuje (z NOVY).',
     dev_stopped: 'Zastaveno na NOVĚ.', dev_done: 'NOVA hlásí dokončenou úlohu.',
-    ver_new: 'na GitHubu je novější verze – obnov stránku (Cmd+Shift+R)', air_job_only: 'NOVA pouští ofuk jen během úlohy (Úloha → Ofuk).',
+    ver_new: 'na GitHubu je novější verze – obnov stránku (Cmd+Shift+R)', air_job: 'zap. (úloha)', dev_working: 'pracuje', air_job_only: 'NOVA pouští ofuk jen během úlohy (Úloha → Ofuk).',
     ui_simple: 'Jednoduchý', ui_expert: 'Expert', th_auto: 'Vzhled podle systému', th_light: 'Světlý vzhled', th_dark: 'Tmavý vzhled',
     confirm_motion: 'Povolit pohyb stroje?\n\nRuce mimo stroj, víko zavřené.',
     h_jog: 'Posun (laser vyp.)', step: 'Krok mm', jogfeed: 'Rychlost mm/min', unlock: 'Odemknout', focus: 'Autofokus', air_on: 'Vzduch zap.', air_off: 'Vzduch vyp.',
@@ -999,7 +999,7 @@ class Grbl {
       this.okAfterStatus = true; this.log('controller answers ? with an extra ok (NOVA) – ignoring it', 'sys'); return;
     }
     const p = this.pending, isErr = /^(error|ALARM)/.test(line);
-    if (!(this.quiet && line === 'ok')) this.log('< ' + redact(line), isErr ? 'bad' : (line[0] === '[' || line.startsWith('Grbl') ? 'msg' : 'rx'));
+    if (!(this.quiet && line === 'ok') && !(p && p.silent)) this.log('< ' + redact(line), isErr ? 'bad' : (line[0] === '[' || line.startsWith('Grbl') ? 'msg' : 'rx'));
     let m;
     if (this.pipe) {  // streaming a job: every ok/error acknowledges the oldest line in flight
       if (line === 'ok') return this.pipe.ack();
@@ -1022,13 +1022,13 @@ class Grbl {
   write(s) { this.wq = this.wq.then(() => this.link.write(s)).catch(e => this.log('write failed: ' + e.message, 'bad')); return this.wq; }
   rt(ch) { if (ch === '?') return this.ask(); this.log('> RT ' + JSON.stringify(ch), 'tx'); return this.write(ch); }
   ask() { this.rtq++; return this.write('?'); }
-  cmd(line, timeout = 10000) {
+  cmd(line, timeout = 10000, silent = false) {  // silent: background polls stay out of the log
     const run = () => new Promise((resolve, reject) => {
       let to;
       const ffHead = /^FF /i.test(line) ? line.toUpperCase().split(/\s+/).slice(0, 2).join(' ') : null;
-      const p = {cmd: line, ff: ffHead && (FF_REPLY_TO[ffHead] || ffHead), lines: [], resolve: v => { clearTimeout(to); resolve(v); }, reject: e => { clearTimeout(to); reject(e); }};
+      const p = {cmd: line, silent, ff: ffHead && (FF_REPLY_TO[ffHead] || ffHead), lines: [], resolve: v => { clearTimeout(to); resolve(v); }, reject: e => { clearTimeout(to); reject(e); }};
       this.pending = p;
-      if (!this.quiet) this.log('> ' + redact(line), 'tx');
+      if (!this.quiet && !silent) this.log('> ' + redact(line), 'tx');
       this.write(line + '\n');
       to = setTimeout(() => { if (this.pending === p) { this.pending = null; reject(new Error('timeout: ' + line)); } }, timeout);
     });
@@ -1243,7 +1243,7 @@ function renderAccessories() {
       .map(([k, v]) => `${t('wear_' + k)} ${Math.min(100, Math.round((v.wearTime || 0) / (WEAR_HOURS[k] * 36)))} %`).join(', ');
     const wearBox = Object.keys(st.consumables || {}).filter(k => CONSUMABLE_CODES[k] && (k !== 'smokePurifier' || st.consumables[k].added));
     card(t('acc_state'), [
-      ['', [st.coverPlateState ? t('lid_open') : t('lid_closed'), st.laserTemperature != null ? `${t('acc_temp')} ${st.laserTemperature} °C` : '', `${t('acc_air')} ${st.airPumpState ? 'on' : 'off'}`, st.alarm && st.alarm !== 'NONE' ? 'ALARM ' + st.alarm : ''].filter(Boolean).join(' · ')],
+      ['', [st.coverPlateState ? t('lid_open') : t('lid_closed'), st.laserTemperature != null ? `${t('acc_temp')} ${st.laserTemperature} °C` : '', st.workState ? t('dev_working') : '', st.alarm && st.alarm !== 'NONE' ? 'ALARM ' + st.alarm : ''].filter(Boolean).join(' · ')],
       [t('acc_wear'), wear]]);
     if (wearBox.length) {
       const row = document.createElement('div'); row.className = 'row'; row.style.cssText = 'border:0;padding:0;background:none';
@@ -1423,7 +1423,23 @@ async function connect() {
   setPerms(false, false);
   $('#btnConnect').textContent = t('disconnect');
   log('connected: ' + type, 'ok');
-  app.poll = setInterval(() => { if (app.grbl) app.grbl.ask(); }, 250);
+  // `?` every 250 ms, but never more than 2 unanswered: when the NOVA answers slowly
+  // the reports would queue up and the display would lag behind the machine
+  app.poll = setInterval(() => {
+    const g = app.grbl; if (!g) return;
+    const now = performance.now();
+    if (g.rtq >= 2 && now - (g.lastAsk || 0) < 2000) return;
+    if (g.rtq >= 2) g.rtq = 0;  // replies lost – start over
+    g.lastAsk = now; g.ask();
+  }, 250);
+  // NOVA: FF F2 every 3 s in the background (lid, temperature, working state) whenever
+  // nothing is being streamed – TOOCAA Studio reads the same JSON
+  app.devPoll = setInterval(async () => {
+    const g = app.grbl; if (!g || !noJog() || g.pipe || g.pending || app.devPolling) return;
+    app.devPolling = true;
+    try { const st = b64json(await g.cmd('FF F2', 3000, true)); app.dev = {...(app.dev || {}), st}; app.devWork = st.workState; renderAccessories(); }
+    catch {} finally { app.devPolling = false; }
+  }, 3000);
   await sleep(type === 'usb' ? 1500 : 300);
   try {
     const b = await app.grbl.cmd('$I', 4000);
@@ -1436,7 +1452,7 @@ async function connect() {
   if (app.grbl && app.grbl.okAfterStatus) await refreshDevice(true);  // NOVA: modules + auto work mode
 }
 async function disconnect() {
-  clearInterval(app.poll); app.poll = null; app.abort = true;
+  clearInterval(app.poll); app.poll = null; clearInterval(app.devPoll); app.devPoll = null; app.abort = true;
   const l = app.link; app.link = null;
   if (app.grbl) app.grbl.abortPending(new Error('disconnected'));
   app.grbl = null;
@@ -1460,7 +1476,7 @@ function onStatus(st) {
   const laserOn = /[SC]/.test(st.acc) && (st.s || 0) > 0;
   $('#vlaser').textContent = laserOn ? 'ON' : (/[SC]/.test(st.acc) ? 'armed' : 'off');
   $('#vlaser').style.color = laserOn ? 'var(--burn)' : '';
-  $('#vair').textContent = /[FM]/.test(st.acc) ? 'on' : 'off';
+  $('#vair').textContent = noJog() ? (app.running && $('#air').checked ? t('air_job') : 'off') : (/[FM]/.test(st.acc) ? 'on' : 'off');
   $('#vf').textContent = st.feed ?? '—'; $('#vs').textContent = st.s ?? '—';
   if (!app.exactBurn && app.lastHead && laserOn && !isRot()) addBurn(app.lastHead, p);
   app.lastHead = p.slice(); app.head = p.slice();
@@ -3161,7 +3177,7 @@ navigator.mediaDevices?.addEventListener?.('devicechange', () => camList().catch
 camList().catch(() => {});
 try { const r = JSON.parse(localStorage.getItem('tl-rot') || 'null'); if (r) { $('#workMode').value = r.mode === 'chuck' ? 'chuck' : 'flat'; if (r.d) $('#diameter').value = r.d; } } catch {}
 // ---- version: the build stamp of this file + the newest index.html commit on GitHub
-const APP_BUILD = '2026-10-15 15:12';
+const APP_BUILD = '2026-10-15 15:27';
 (async () => {
   const el = $('#appVer'); el.textContent = 'build ' + APP_BUILD;
   try {
