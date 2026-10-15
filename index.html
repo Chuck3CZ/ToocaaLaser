@@ -8,19 +8,22 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23111827'/%3E%3Cpath d='M16 5v10' stroke='%23f97316' stroke-width='3' stroke-linecap='round'/%3E%3Ccircle cx='16' cy='21' r='5' fill='%23f97316'/%3E%3C/svg%3E">
 <style>
 :root{
-  --bg:#f4f5f7;--panel:#ffffff;--fg:#14171c;--mut:#5d6573;--line:#dde1e7;--field:#f8f9fb;
+  --bg:#e9ecf1;--panel:#ffffff;--fg:#14171c;--mut:#5d6573;--line:#dde1e7;--field:#f8f9fb;
+  --c-edit:#475569;--c-obj:#7c3aed;--c-job:#15803d;--c-conn:#2563eb;--c-mach:#0f766e;--c-cam:#b45309;--c-safe:#dc2626;--c-jog:#c2410c;--c-con:#64748b;--tint:8%;
   --acc:#2457d6;--acc-fg:#ffffff;--ok:#157a3b;--warn:#a15c07;--bad:#c81e1e;--bad-fg:#ffffff;
   --burn:#e8590c;--travel:#9aa5b4;--bed:#fbf8f2;--grid:#ebe5da;--grid2:#d9d0c1;--head:#2457d6;--ink:#2b2118;--sel:#2457d6;
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
     --bg:#0e1116;--panel:#171b22;--fg:#e7eaf0;--mut:#9aa3b2;--line:#29303b;--field:#11151b;
+    --c-edit:#94a3b8;--c-obj:#a78bfa;--c-job:#4ade80;--c-conn:#60a5fa;--c-mach:#2dd4bf;--c-cam:#fbbf24;--c-safe:#f87171;--c-jog:#fb923c;--c-con:#9ca3af;--tint:8%;
     --acc:#5b8cff;--acc-fg:#08142e;--ok:#3ecf7a;--warn:#f0a73a;--bad:#ff5a5a;--bad-fg:#ffffff;
     --burn:#ff8a3d;--travel:#4a5566;--bed:#1d1a16;--grid:#2a2620;--grid2:#3a342b;--head:#7aa2ff;--ink:#f3e3cf;--sel:#7aa2ff;
   }
 }
 :root[data-theme="dark"]{
   --bg:#0e1116;--panel:#171b22;--fg:#e7eaf0;--mut:#9aa3b2;--line:#29303b;--field:#11151b;
+  --c-edit:#94a3b8;--c-obj:#a78bfa;--c-job:#4ade80;--c-conn:#60a5fa;--c-mach:#2dd4bf;--c-cam:#fbbf24;--c-safe:#f87171;--c-jog:#fb923c;--c-con:#9ca3af;--tint:8%;
   --acc:#5b8cff;--acc-fg:#08142e;--ok:#3ecf7a;--warn:#f0a73a;--bad:#ff5a5a;--bad-fg:#ffffff;
   --burn:#ff8a3d;--travel:#4a5566;--bed:#1d1a16;--grid:#2a2620;--grid2:#3a342b;--head:#7aa2ff;--ink:#f3e3cf;--sel:#7aa2ff;
 }
@@ -36,8 +39,14 @@ body.simple .adv{display:none!important}
 main{max-width:1320px;margin:0 auto;display:grid;gap:14px;grid-template-columns:minmax(0,1fr)}
 @media(min-width:1020px){main{grid-template-columns:minmax(0,1.7fr) minmax(320px,1fr)}}
 .col{display:grid;gap:14px;align-content:start;min-width:0}
-section{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;min-width:0}
-h2{font-size:13px;text-transform:uppercase;letter-spacing:.6px;color:var(--mut);margin:0 0 10px;font-weight:600}
+section{--sec:var(--c-edit);background:color-mix(in srgb,var(--sec) var(--tint),var(--panel));border:1px solid color-mix(in srgb,var(--sec) 35%,var(--line));
+  border-top:3px solid color-mix(in srgb,var(--sec) 75%,transparent);border-radius:12px;padding:14px;min-width:0}
+section[data-sec=obj]{--sec:var(--c-obj)}section[data-sec=job]{--sec:var(--c-job)}section[data-sec=conn]{--sec:var(--c-conn)}
+section[data-sec=mach]{--sec:var(--c-mach)}section[data-sec=cam]{--sec:var(--c-cam)}section[data-sec=safe]{--sec:var(--c-safe)}
+section[data-sec=jog]{--sec:var(--c-jog)}section[data-sec=con]{--sec:var(--c-con)}
+h2{font-size:13px;text-transform:uppercase;letter-spacing:.6px;color:var(--mut);margin:0 0 10px;font-weight:700}
+section h2{color:color-mix(in srgb,var(--sec) 80%,var(--fg))}
+section h3{color:color-mix(in srgb,var(--sec) 55%,var(--mut))}
 button,select,input,textarea{font:inherit;color:var(--fg)}
 button{background:var(--field);border:1px solid var(--line);border-radius:8px;padding:7px 11px;cursor:pointer;white-space:nowrap}
 button:hover:not(:disabled){border-color:var(--acc)}
@@ -109,6 +118,7 @@ details summary{cursor:pointer;color:var(--mut);font-size:12.5px}
   <h1>ToocaaLaser</h1>
   <div class="tag" data-i18n="tagline">Local design &amp; control for TOOCAA NOVA – no cloud, no account</div>
   <div class="lang row" id="uiMode"><button data-ui="simple" data-i18n="ui_simple">Simple</button><button data-ui="expert" data-i18n="ui_expert">Expert</button></div>
+  <div class="lang row" id="themeSel"><button data-theme-set="auto" data-i18n-title="th_auto">◐</button><button data-theme-set="light" data-i18n-title="th_light">☀</button><button data-theme-set="dark" data-i18n-title="th_dark">☾</button></div>
   <div class="lang row"><button data-lang="cs">CZ</button><button data-lang="en">EN</button></div>
   <button class="stop" id="btnStop" title="Esc" disabled>STOP</button>
 </header>
@@ -499,7 +509,7 @@ const T = {
     h_shapes: 'Shapes', b_union: 'Union', b_sub: 'Subtract', b_int: 'Intersect', b_xor: 'Exclude', offset_mm: 'Offset mm', b_offset: 'Create offset',
     shapes_note: 'Subtract keeps the first selected shape and cuts the others out of it. Works on rectangles, circles and vectors (trace text or images first).',
     need_two: 'Select at least two shapes.', need_vec: 'Select rectangles, circles or vectors.', qr_prompt: 'Text or link for the QR code:', shape_empty: 'The result is empty.',
-    ui_simple: 'Simple', ui_expert: 'Expert',
+    ui_simple: 'Simple', ui_expert: 'Expert', th_auto: 'Theme: follow the system', th_light: 'Light theme', th_dark: 'Dark theme',
     confirm_motion: 'Allow the machine to move?\n\nKeep hands out of the machine and the lid closed.',
     h_jog: 'Jog (laser off)', step: 'Step mm', jogfeed: 'Feed mm/min', unlock: 'Unlock', focus: 'Autofocus', air_on: 'Air on', air_off: 'Air off',
     h_console: 'Console', send: 'Send', clear: 'Clear',
@@ -574,7 +584,7 @@ const T = {
     h_shapes: 'Tvary', b_union: 'Sjednotit', b_sub: 'Odečíst', b_int: 'Průnik', b_xor: 'Vyloučit', offset_mm: 'Offset mm', b_offset: 'Vytvořit offset',
     shapes_note: 'Odečíst nechá první vybraný tvar a ostatní z něj vyřízne. Funguje s obdélníky, kruhy a vektory (text nebo obrázek nejdřív převeď na vektory).',
     need_two: 'Vyber aspoň dva tvary.', need_vec: 'Vyber obdélníky, kruhy nebo vektory.', qr_prompt: 'Text nebo odkaz pro QR kód:', shape_empty: 'Výsledek je prázdný.',
-    ui_simple: 'Jednoduchý', ui_expert: 'Expert',
+    ui_simple: 'Jednoduchý', ui_expert: 'Expert', th_auto: 'Vzhled podle systému', th_light: 'Světlý vzhled', th_dark: 'Tmavý vzhled',
     confirm_motion: 'Povolit pohyb stroje?\n\nRuce mimo stroj, víko zavřené.',
     h_jog: 'Posun (laser vyp.)', step: 'Krok mm', jogfeed: 'Rychlost mm/min', unlock: 'Odemknout', focus: 'Autofokus', air_on: 'Vzduch zap.', air_off: 'Vzduch vyp.',
     h_console: 'Konzole', send: 'Odeslat', clear: 'Vymazat',
@@ -2899,6 +2909,17 @@ function ensurePerms(kind) {
   else if (kind === 'motion' && !app.perms.motion) { if (confirm(t('confirm_motion'))) setPerms(true, app.perms.laser); }
 }
 $$('[data-ui]').forEach(b => b.addEventListener('click', () => setUiMode(b.dataset.ui)));
+// ---- light / dark / auto, and a colour per panel (by its heading)
+function setTheme(m) {
+  if (m === 'light' || m === 'dark') document.documentElement.dataset.theme = m; else delete document.documentElement.dataset.theme;
+  $$('[data-theme-set]').forEach(b => b.classList.toggle('on', b.dataset.themeSet === (m || 'auto')));
+  try { localStorage.setItem('tl-theme', m || 'auto'); } catch {}
+  previewCache.clear(); draw();
+}
+$$('[data-theme-set]').forEach(b => b.addEventListener('click', () => setTheme(b.dataset.themeSet)));
+matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', () => { previewCache.clear(); draw(); });
+const SEC_OF = {h_props: 'obj', h_job: 'job', h_conn: 'conn', h_status: 'mach', h_camera: 'cam', h_safety: 'safe', h_jog: 'jog', h_console: 'con'};
+$$('section').forEach(sec => { const h = sec.querySelector(':scope > h2'); sec.dataset.sec = (h && SEC_OF[h.dataset.i18n]) || 'edit'; });
 $('#btnFocus').addEventListener('click', autofocus);
 $('#tGrid').addEventListener('click', addGrid);
 $('#tQr').addEventListener('click', () => addQr());
@@ -3047,6 +3068,7 @@ navigator.mediaDevices?.addEventListener?.('devicechange', () => camList().catch
 camList().catch(() => {});
 try { const r = JSON.parse(localStorage.getItem('tl-rot') || 'null'); if (r) { $('#workMode').value = r.mode === 'chuck' ? 'chuck' : 'flat'; if (r.d) $('#diameter').value = r.d; } } catch {}
 tagAdvanced();
+{ let th = 'auto'; try { th = localStorage.getItem('tl-theme') || 'auto'; } catch {} setTheme(th); }
 { let m = 'simple'; try { m = localStorage.getItem('tl-ui') || 'simple'; } catch {} setUiMode(m); }
 applyLang(); applyWorkMode(false); syncProps(); renderObjList(); refreshButtons(); draw();
 (async () => {
