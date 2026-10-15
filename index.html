@@ -94,6 +94,12 @@ pre{margin:0;font:12px/1.45 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace
 footer{max-width:1320px;margin:18px auto 0;color:var(--mut);font-size:12.5px}
 footer a,.note a{color:var(--acc)}
 .hidden{display:none!important}
+.acc{display:grid;gap:6px;margin-top:10px}
+.acc div{background:var(--field);border:1px solid var(--line);border-radius:8px;padding:6px 8px;font-size:12.5px;line-height:1.45}
+.acc b{display:block;font-size:13px}
+.acc .off{opacity:.55}
+.acc span{color:var(--mut)}
+#camCalCanvas{width:100%;border:1px solid var(--line);border-radius:8px;cursor:crosshair;margin-top:8px}
 details summary{cursor:pointer;color:var(--mut);font-size:12.5px}
 </style>
 </head>
@@ -235,6 +241,11 @@ details summary{cursor:pointer;color:var(--mut);font-size:12.5px}
       <label><span data-i18n="origin">Machine origin</span><br><select id="origin"><option value="rl" data-i18n="origin_rl" selected>Rear-left (TOOCAA profile)</option><option value="fl" data-i18n="origin_fl">Front-left (Y up)</option></select></label>
       <label class="check" style="align-self:flex-end"><input type="checkbox" id="air"><span data-i18n="air">Air assist (M8/M9)</span></label>
     </div>
+    <div class="row">
+      <label><span data-i18n="work_mode">Work mode</span><br><select id="workMode"><option value="flat" data-i18n="mode_flat">Flat surface</option><option value="chuck" data-i18n="mode_chuck">Chuck rotary</option></select></label>
+      <label id="diaWrap" class="hidden"><span data-i18n="diameter">Diameter (mm)</span><br><input type="number" id="diameter" min="5" max="150" step="0.1" value="70" style="width:90px"></label>
+      <span class="note" id="rotNote" style="margin:0;align-self:flex-end"></span>
+    </div>
     <div class="stats" id="jobStats"></div>
     <div class="bar"><i id="progress"></i></div>
     <div class="row" style="margin-top:10px">
@@ -281,6 +292,31 @@ details summary{cursor:pointer;color:var(--mut);font-size:12.5px}
       <div><span>F</span><b id="vf">—</b></div>
       <div><span>S</span><b id="vs">—</b></div>
     </div>
+    <div class="row" style="margin-top:10px"><b data-i18n="h_acc" style="flex:1">Accessories</b><button id="btnAcc" title="FF F1 + FF F2" data-i18n="refresh" disabled>Refresh</button></div>
+    <div class="acc" id="accessories"><div class="off" data-i18n="acc_none">Connect a NOVA to read its modules.</div></div>
+  </section>
+
+  <section>
+    <h2 data-i18n="h_camera">Camera</h2>
+    <div class="row"><select id="camSel" class="grow" aria-label="camera"></select><button id="camStart" data-i18n="cam_start">Start camera</button></div>
+    <div class="row">
+      <button id="camShot" data-i18n="cam_shot" disabled>Photo to bed</button>
+      <button id="camCal" data-i18n="cam_cal" disabled>Calibrate</button>
+      <label class="check"><input type="checkbox" id="camShow" checked><span data-i18n="cam_show">Show</span></label>
+      <input type="range" id="camAlpha" min="0.15" max="1" step="0.05" value="0.8" aria-label="opacity" style="width:90px">
+    </div>
+    <div id="camCalBox" class="hidden">
+      <p class="note" id="camCalNote"></p>
+      <canvas id="camCalCanvas"></canvas>
+      <div class="row">
+        <span class="note" style="margin:0" data-i18n="cam_ref">Reference rectangle (mm, 0,0 = rear-left):</span>
+        <input type="number" id="calX0" value="0" step="0.5" style="width:62px" aria-label="X0"><input type="number" id="calY0" value="0" step="0.5" style="width:62px" aria-label="Y0">
+        <input type="number" id="calX1" value="297" step="0.5" style="width:62px" aria-label="X1"><input type="number" id="calY1" value="210" step="0.5" style="width:62px" aria-label="Y1">
+      </div>
+      <div class="row"><button id="camCalReset" data-i18n="cam_reset">Reset points</button><button id="camCalCancel" data-i18n="cancel">Cancel</button><button id="camCalSave" class="primary" data-i18n="save" disabled>Save</button></div>
+    </div>
+    <video id="camVideo" playsinline muted class="hidden"></video>
+    <p class="note" id="camNote" data-i18n="cam_note">The NOVA lid camera is a USB webcam (same cable). Calibrate once by clicking 4 corners, then "Photo to bed" lays the picture under your design.</p>
   </section>
 
   <section>
@@ -336,7 +372,16 @@ details summary{cursor:pointer;color:var(--mut);font-size:12.5px}
 
 <script>
 'use strict';
-const BED = {w: 297, h: 210};
+const BED = {w: 297, h: 210};       // current design area (changes in rotary mode)
+const FLAT_BED = {w: 297, h: 210};  // physical NOVA bed (20 W module)
+// Rotary (TOOCAA Studio, graphics-engine): the design area is 190 mm wide and
+// π·Ø tall; a design Y becomes the A axis in degrees, A = y / (π·Ø) · 360
+// (chuck, sign +1). Machine Y stays on the axis line: pO() in Studio.
+const ROT_W = 190;
+const isRot = () => $('#workMode') && $('#workMode').value === 'chuck';
+const rotDia = () => Math.min(150, Math.max(5, +$('#diameter').value || 70));
+const rotPer = () => Math.PI * rotDia();
+const rotaryY = d => d >= 75 ? FLAT_BED.h : FLAT_BED.h + 5 - (75 - d);
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -378,6 +423,18 @@ const T = {
     h_status: 'Machine', laser: 'Laser', airk: 'Air', h_safety: 'Safety',
     allow_motion: 'Allow motion (jog, home, frame, job)', allow_laser: 'Allow laser (jobs that switch the beam on)',
     safety_note: "Both reset on every connect. Settings ($n=…) are never sent. The machine's lid interlock, flame and tilt sensors always stay in charge; STOP / Esc = feed hold + soft reset.",
+    work_mode: 'Work mode', mode_flat: 'Flat surface', mode_chuck: 'Chuck rotary', diameter: 'Diameter (mm)',
+    rot_note: 'Rotary: bed {w} × {h} mm (π·Ø), Y is sent as A degrees.', rot_auto_on: 'NOVA reports the rotary module – switched to Chuck rotary.',
+    rot_auto_off: 'Rotary module disconnected – switched to Flat surface.',
+    h_acc: 'Accessories', refresh: 'Refresh', acc_none: 'Connect a NOVA to read its modules.', acc_ver: 'Version', acc_date: 'Manufactured',
+    acc_hours: 'Working time', acc_online: 'connected', acc_offline: 'not connected', acc_state: 'State', lid_open: 'lid OPEN', lid_closed: 'lid closed',
+    acc_temp: 'laser', acc_air: 'air pump', acc_wear: 'Wear', wear_laserLens: 'lens', wear_machineFilter: 'filter', wear_smokePurifier: 'purifier',
+    h_camera: 'Camera', cam_start: 'Start camera', cam_stop: 'Stop camera', cam_shot: 'Photo to bed', cam_cal: 'Calibrate', cam_show: 'Show',
+    cam_ref: 'Reference rectangle (mm, 0,0 = rear-left):', cam_reset: 'Reset points', cancel: 'Cancel', save: 'Save',
+    cam_note: 'The NOVA lid camera is a USB webcam (same cable). Calibrate once by clicking 4 corners, then "Photo to bed" lays the picture under your design.',
+    cam_click: 'Click point {n}/4: {name}', cam_done: 'All 4 points set – Save.', cam_need_cal: 'Calibrate the camera first.',
+    cam_c1: 'rear-left (X0 Y0)', cam_c2: 'rear-right (X1 Y0)', cam_c3: 'front-right (X1 Y1)', cam_c4: 'front-left (X0 Y1)',
+    cam_rot: 'The camera overlay is only for the flat bed.',
     h_jog: 'Jog (laser off)', step: 'Step mm', jogfeed: 'Feed mm/min', unlock: 'Unlock', focus: 'Autofocus', air_on: 'Air on', air_off: 'Air off',
     h_console: 'Console', send: 'Send', clear: 'Clear',
     footer: "Unofficial project, not affiliated with TOOCAA. Talks to the machine's Grbl_ESP32 controller directly; nothing leaves your computer.",
@@ -427,6 +484,18 @@ const T = {
     h_status: 'Stroj', laser: 'Laser', airk: 'Vzduch', h_safety: 'Bezpečnost',
     allow_motion: 'Povolit pohyb (posun, home, rámeček, úloha)', allow_laser: 'Povolit laser (úlohy se zapnutým paprskem)',
     safety_note: 'Obojí se vypne při každém připojení. Nastavení ($n=…) se nikdy neposílá. Blokování víka, čidla plamene a náklonu ve stroji mají vždy přednost; STOP / Esc = pozastavení + soft reset.',
+    work_mode: 'Režim', mode_flat: 'Rovný povrch', mode_chuck: 'Kusový rotační', diameter: 'Průměr (mm)',
+    rot_note: 'Rotační: plocha {w} × {h} mm (π·Ø), Y se posílá jako osa A ve stupních.', rot_auto_on: 'NOVA hlásí rotační modul – přepnuto na Kusový rotační.',
+    rot_auto_off: 'Rotační modul odpojen – přepnuto na Rovný povrch.',
+    h_acc: 'Doplňky', refresh: 'Obnovit', acc_none: 'Připoj NOVU a načtou se její moduly.', acc_ver: 'Aktuální verze', acc_date: 'Datum výroby',
+    acc_hours: 'Pracovní doba', acc_online: 'připojeno', acc_offline: 'nepřipojeno', acc_state: 'Stav', lid_open: 'víko OTEVŘENÉ', lid_closed: 'víko zavřené',
+    acc_temp: 'laser', acc_air: 'ofuk', acc_wear: 'Opotřebení', wear_laserLens: 'čočka', wear_machineFilter: 'filtr', wear_smokePurifier: 'čistička',
+    h_camera: 'Kamera', cam_start: 'Zapnout kameru', cam_stop: 'Vypnout kameru', cam_shot: 'Snímek na plochu', cam_cal: 'Kalibrovat', cam_show: 'Zobrazit',
+    cam_ref: 'Referenční obdélník (mm, 0,0 = vzadu vlevo):', cam_reset: 'Znovu', cancel: 'Zrušit', save: 'Uložit',
+    cam_note: 'Kamera ve víku NOVY je USB webkamera (stejný kabel). Jednou ji zkalibruj kliknutím na 4 rohy, pak „Snímek na plochu“ položí fotku pod tvůj motiv.',
+    cam_click: 'Klikni na bod {n}/4: {name}', cam_done: 'Všechny 4 body jsou zadané – Uložit.', cam_need_cal: 'Nejdřív kameru zkalibruj.',
+    cam_c1: 'vzadu vlevo (X0 Y0)', cam_c2: 'vzadu vpravo (X1 Y0)', cam_c3: 'vpředu vpravo (X1 Y1)', cam_c4: 'vpředu vlevo (X0 Y1)',
+    cam_rot: 'Obraz z kamery je jen pro rovnou plochu.',
     h_jog: 'Posun (laser vyp.)', step: 'Krok mm', jogfeed: 'Rychlost mm/min', unlock: 'Odemknout', focus: 'Autofokus', air_on: 'Vzduch zap.', air_off: 'Vzduch vyp.',
     h_console: 'Konzole', send: 'Odeslat', clear: 'Vymazat',
     footer: 'Neoficiální projekt, nemá vztah k TOOCAA. Komunikuje přímo s řadičem Grbl_ESP32 ve stroji; nic neopouští tvůj počítač.',
@@ -692,7 +761,7 @@ class SimLink {
     const d = Math.hypot(to[0] - from[0], to[1] - from[1], to[2] - from[2]);
     this.planner.push({from, to: to.slice(), dur: d / Math.max(feed, 1) * 60, el: 0, laser, s, feed});
   }
-  inBed(p) { return p[0] >= 0 && p[0] <= BED.w && p[1] >= 0 && p[1] <= BED.h; }
+  inBed(p) { return p[0] >= 0 && p[0] <= FLAT_BED.w && p[1] >= 0 && p[1] <= FLAT_BED.h; }
   line(raw) {
     const m = this.m, ln = cleanLine(raw);
     if (!ln) return ['ok'];
@@ -747,6 +816,7 @@ class SimLink {
         else if (![17, 20, 21, 54, 94, 4, 92].includes(v)) return ['error:20'];
       } else if (k === 'M') { if (![2, 3, 4, 5, 7, 8, 9, 30].includes(v)) return ['error:20']; }
       else if ('XYZ'.includes(k)) { const i = 'XYZ'.indexOf(k); tgt[i] = abs ? v : tgt[i] + v; moved = true; }
+      else if (k === 'A') { m.a = abs ? v : (m.a || 0) + v; }  // rotary axis: tracked, not drawn
       else if (!'SFIJPTN'.includes(k)) return ['error:20'];
     }
     if (moved && motion === 1 && !w.some(([k]) => k === 'F') && m.f <= 0) return ['error:22'];
@@ -912,6 +982,7 @@ function refreshButtons() {
   $$('[data-jog],#btnHome,#btnUnlock,#btnFocus,#btnAirOn,#btnAirOff').forEach(b => b.disabled = !c || r || !app.perms.motion);
   $('#btnHold').disabled = !c; $('#btnResume').disabled = !c;
   $('#btnSend').disabled = !c; $$('[data-q]').forEach(b => b.disabled = !c);
+  $('#btnAcc').disabled = !c || r;
   $('#linkType').disabled = c;
   const s = ed.selSet.size > 0 && !app.raw;
   $('#tCopy').disabled = !s; $('#tDup').disabled = !s; $('#tDel').disabled = !s;
@@ -927,12 +998,191 @@ function updateConnNote() {
 }
 
 // ---------------------------------------------------------------- connection
+// ---------------------------------------------------------------- work mode (flat / chuck rotary)
+function applyWorkMode(save = true) {
+  const rot = isRot();
+  $('#diaWrap').classList.toggle('hidden', !rot);
+  BED.w = rot ? ROT_W : FLAT_BED.w; BED.h = rot ? +rotPer().toFixed(2) : FLAT_BED.h;
+  $('#rotNote').textContent = rot ? t('rot_note').replace('{w}', BED.w).replace('{h}', BED.h.toFixed(1)) : '';
+  if (save) { try { localStorage.setItem('tl-rot', JSON.stringify({mode: $('#workMode').value, d: rotDia()})); } catch {} }
+  regenerate(); draw();
+}
+function setWorkMode(mode, msg) {
+  if ($('#workMode').value === mode) return;
+  $('#workMode').value = mode; applyWorkMode(); if (msg) log(msg, 'ok');
+}
+
+// ---------------------------------------------------------------- accessories (FF F1 / FF F2)
+// TOOCAA Studio lists the NOVA, laser module, air assist and rotary from
+// `FF F1`; `FF F2` carries the live state. Both are base64 JSON.
+const b64json = r => JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(r[0].split(' ').slice(2).join('')), c => c.charCodeAt(0))));
+const WEAR_HOURS = {laserLens: 24, machineFilter: 24, smokePurifier: 2160};  // Studio: cycleHours
+async function refreshDevice(auto = false) {
+  const g = app.grbl; if (!g || app.running) return;
+  let info = null, st = null;
+  try { info = b64json(await g.cmd('FF F1', 4000)).data || null; } catch (e) { log('FF F1: ' + errText(e), 'bad'); }
+  try { st = b64json(await g.cmd('FF F2', 4000)); } catch (e) { log('FF F2: ' + errText(e), 'bad'); }
+  app.dev = {info, st}; renderAccessories();
+  if (info && auto) {
+    const rot = !!(info.rotary && info.rotary.isOnline);
+    if (rot) setWorkMode('chuck', t('rot_auto_on')); else setWorkMode('flat', t('rot_auto_off'));
+    const pw = info.laser && info.laser.power;
+    if (pw && $(`#module option[value="${pw}"]`)) { $('#module').value = String(pw); $('#module').dispatchEvent(new Event('change')); }
+  }
+}
+function renderAccessories() {
+  const el = $('#accessories'); el.textContent = '';
+  const d = app.dev || {}, info = d.info, st = d.st;
+  if (!info && !st) { const n = document.createElement('div'); n.className = 'off'; n.textContent = t('acc_none'); el.append(n); return; }
+  const card = (title, rows, off) => {
+    const c = document.createElement('div'); if (off) c.className = 'off';
+    const b = document.createElement('b'); b.textContent = title; c.append(b);
+    for (const [k, v] of rows) if (v !== undefined && v !== null && v !== '') { const r = document.createElement('div'); r.style.cssText = 'border:0;padding:0;background:none'; if (k) { const sp = document.createElement('span'); sp.textContent = k + ': '; r.append(sp); } r.append(String(v)); c.append(r); }
+    el.append(c);
+  };
+  const base = m => [[t('acc_ver'), m.version], [t('acc_date'), m.manufactureDate], ['SN', m.SN]];
+  if (info) {
+    const n = info.toocaaNova || {}, l = info.laser || {}, a = info.airAssist || {}, r = info.rotary || {};
+    card('TOOCAA NOVA', base(n));
+    card(`TOOCAA NOVA ${l.power ? l.power + 'W ' : ''}Diode Laser Module`, [...base(l), [t('acc_hours'), l.workTime != null ? (+l.workTime).toFixed(2) + ' h' : null]], l.isOnline === false);
+    card('TOOCAA NOVA Air Assist Set', a.isOnline === false ? [['', t('acc_offline')]] : base(a), a.isOnline === false);
+    card('TOOCAA NOVA Rotary', [[t('acc_state'), r.isOnline ? t('acc_online') : t('acc_offline')], ...(r.SN ? base(r) : [])], !r.isOnline);
+  }
+  if (st) {
+    const wear = Object.entries(st.consumables || {}).filter(([k, v]) => WEAR_HOURS[k] && (k !== 'smokePurifier' || v.added))
+      .map(([k, v]) => `${t('wear_' + k)} ${Math.min(100, Math.round((v.wearTime || 0) / (WEAR_HOURS[k] * 36)))} %`).join(', ');
+    card(t('acc_state'), [
+      ['', [st.coverPlateState ? t('lid_open') : t('lid_closed'), st.laserTemperature != null ? `${t('acc_temp')} ${st.laserTemperature} °C` : '', `${t('acc_air')} ${st.airPumpState ? 'on' : 'off'}`, st.alarm && st.alarm !== 'NONE' ? 'ALARM ' + st.alarm : ''].filter(Boolean).join(' · ')],
+      [t('acc_wear'), wear]]);
+  }
+}
+
+// ---------------------------------------------------------------- camera
+// The NOVA lid camera is a USB (UVC) webcam: "TOOCAA NOVA Smart Camera / 2K AF
+// WEBCAM", USB 0c45:6368 or 1bcf:28c4. TOOCAA Studio's pipeline, rebuilt here:
+// getUserMedia 2592×1944 → radial lens correction (k = −0.12, Studio's shader)
+// → perspective from 4 clicked points → image under the design.
+const CAM = {stream: null, img: null, und: null, pts: [], cal: null, K: -0.12, alpha: 0.8};
+try { CAM.cal = JSON.parse(localStorage.getItem('tl-camcal') || 'null'); } catch {}
+const CAM_RE = /toocaa|nova|2k af|0c45:6368|1bcf:28c4/i;
+async function camList() {
+  if (!navigator.mediaDevices?.enumerateDevices) return;
+  const devs = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'videoinput');
+  const sel = $('#camSel'), cur = CAM.stream?.getVideoTracks()[0]?.getSettings().deviceId || sel.value;
+  sel.textContent = '';
+  devs.forEach((d, i) => { const o = document.createElement('option'); o.value = d.deviceId; o.textContent = d.label || `camera ${i + 1}`; sel.append(o); });
+  const pick = devs.find(d => d.deviceId === cur) || devs.find(d => CAM_RE.test(d.label));
+  if (pick) sel.value = pick.deviceId;
+}
+async function camStart() {
+  if (CAM.stream) { CAM.stream.getTracks().forEach(tr => tr.stop()); CAM.stream = null; $('#camStart').textContent = t('cam_start'); camButtons(); return; }
+  if (!navigator.mediaDevices?.getUserMedia) { log('camera: getUserMedia is not available in this browser', 'bad'); return; }
+  const id = $('#camSel').value, size = {width: {ideal: 2592}, height: {ideal: 1944}};
+  try {
+    CAM.stream = await navigator.mediaDevices.getUserMedia({video: id ? {deviceId: {exact: id}, ...size} : size, audio: false});
+    const v = $('#camVideo'); v.srcObject = CAM.stream; await v.play();
+    await camList();
+    const s2 = CAM.stream.getVideoTracks()[0].getSettings();
+    log(`camera: ${CAM.stream.getVideoTracks()[0].label || 'on'} ${s2.width}×${s2.height}`, 'ok');
+    if (!CAM_RE.test(CAM.stream.getVideoTracks()[0].label || '')) log('camera: this does not look like the NOVA camera – pick it in the list', 'sys');
+    $('#camStart').textContent = t('cam_stop');
+  } catch (e) { CAM.stream = null; log('camera: ' + errText(e), 'bad'); }
+  camButtons();
+}
+function camButtons() { const on = !!CAM.stream; $('#camShot').disabled = !on; $('#camCal').disabled = !on; }
+function camGrab() {  // one frame, lens-corrected, ~1300 px wide
+  const v = $('#camVideo'); if (!v.videoWidth) throw new Error('camera not running');
+  const w = Math.min(1296, v.videoWidth), h = Math.round(w * v.videoHeight / v.videoWidth);
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  c.getContext('2d').drawImage(v, 0, 0, w, h);
+  return undistort(c, CAM.K);
+}
+function undistort(src, k) {  // TOOCAA Studio's fisheye fragment shader, on the CPU
+  const w = src.width, h = src.height, sd = src.getContext('2d').getImageData(0, 0, w, h).data;
+  const out = document.createElement('canvas'); out.width = w; out.height = h;
+  const ox = out.getContext('2d'), od = ox.createImageData(w, h), D = od.data, r = w / h;
+  const lim = r < 1 ? ((0.5 * r) ** 2 + 0.25) / (2 / r) : (0.25 + (0.5 / r) ** 2) / (2 * r);
+  const sc = k >= 0 ? 1 + k * lim : 1 / (1 - k * lim);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const u = (x + 0.5) / w - 0.5, v = (y + 0.5) / h - 0.5;
+    const rsq = r < 1 ? (u * r) ** 2 + v * v : u * u + (v / r) ** 2, f = (1 + k * rsq) / sc;
+    const sx = Math.floor((0.5 + u * f) * w), sy = Math.floor((0.5 + v * f) * h);
+    if (sx < 0 || sy < 0 || sx >= w || sy >= h) continue;
+    const i = (y * w + x) * 4, j = (sy * w + sx) * 4;
+    D[i] = sd[j]; D[i + 1] = sd[j + 1]; D[i + 2] = sd[j + 2]; D[i + 3] = 255;
+  }
+  ox.putImageData(od, 0, 0); return out;
+}
+function homography(src, dst) {  // 3×3 H with dst ~ H·src, from 4 point pairs
+  const A = [], B = [];
+  for (let i = 0; i < 4; i++) {
+    const [x, y] = src[i], [u, v] = dst[i];
+    A.push([x, y, 1, 0, 0, 0, -u * x, -u * y]); B.push(u);
+    A.push([0, 0, 0, x, y, 1, -v * x, -v * y]); B.push(v);
+  }
+  for (let c = 0; c < 8; c++) {  // Gauss-Jordan with partial pivoting
+    let p = c; for (let r = c + 1; r < 8; r++) if (Math.abs(A[r][c]) > Math.abs(A[p][c])) p = r;
+    [A[c], A[p]] = [A[p], A[c]]; [B[c], B[p]] = [B[p], B[c]];
+    if (Math.abs(A[c][c]) < 1e-12) throw new Error('calibration points are degenerate');
+    for (let r = 0; r < 8; r++) if (r !== c) { const f = A[r][c] / A[c][c]; for (let k = c; k < 8; k++) A[r][k] -= f * A[c][k]; B[r] -= f * B[c]; }
+  }
+  const h = B.map((b, i) => b / A[i][i]); return [...h, 1];
+}
+function camWarp(und, cal) {  // lens-corrected frame → top view of the flat bed, 4 px/mm
+  const PX = 4, W = FLAT_BED.w * PX, H = FLAT_BED.h * PX, w = und.width, h = und.height;
+  const [x0, y0, x1, y1] = cal.ref;
+  const Hm = homography([[x0, y0], [x1, y0], [x1, y1], [x0, y1]], cal.pts.map(([u, v]) => [u * w, v * h]));
+  const sd = und.getContext('2d').getImageData(0, 0, w, h).data;
+  const out = document.createElement('canvas'); out.width = W; out.height = H;
+  const ox = out.getContext('2d'), od = ox.createImageData(W, H), D = od.data;
+  for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) {
+    const X = (i + 0.5) / PX, Y = (j + 0.5) / PX, q = Hm[6] * X + Hm[7] * Y + 1;
+    const sx = Math.floor((Hm[0] * X + Hm[1] * Y + Hm[2]) / q), sy = Math.floor((Hm[3] * X + Hm[4] * Y + Hm[5]) / q);
+    if (sx < 0 || sy < 0 || sx >= w || sy >= h) continue;
+    const a = (j * W + i) * 4, b = (sy * w + sx) * 4;
+    D[a] = sd[b]; D[a + 1] = sd[b + 1]; D[a + 2] = sd[b + 2]; D[a + 3] = 255;
+  }
+  ox.putImageData(od, 0, 0); return out;
+}
+function camShot() {
+  if (isRot()) { log(t('cam_rot'), 'sys'); return; }
+  if (!CAM.cal) { log(t('cam_need_cal'), 'bad'); return camCalStart(); }
+  try { CAM.img = camWarp(camGrab(), CAM.cal); $('#camShow').checked = true; draw(); } catch (e) { log('camera: ' + errText(e), 'bad'); }
+}
+const CAM_NAMES = ['cam_c1', 'cam_c2', 'cam_c3', 'cam_c4'];
+function camCalStart() {
+  try { CAM.und = camGrab(); } catch (e) { log('camera: ' + errText(e), 'bad'); return; }
+  CAM.pts = []; $('#camCalBox').classList.remove('hidden');
+  if (CAM.cal) ['calX0', 'calY0', 'calX1', 'calY1'].forEach((id, i) => { $('#' + id).value = CAM.cal.ref[i]; });
+  camCalDraw();
+}
+function camCalDraw() {
+  const c = $('#camCalCanvas'), u = CAM.und; if (!u) return;
+  c.width = u.width; c.height = u.height;
+  const x = c.getContext('2d'); x.drawImage(u, 0, 0);
+  const r = Math.max(6, u.width / 140);
+  x.lineWidth = r / 3; x.strokeStyle = '#ff3b30'; x.fillStyle = '#ff3b30'; x.font = `bold ${r * 2.4}px system-ui`;
+  if (CAM.pts.length > 1) { x.beginPath(); CAM.pts.forEach(([pu, pv], i) => i ? x.lineTo(pu * u.width, pv * u.height) : x.moveTo(pu * u.width, pv * u.height)); if (CAM.pts.length === 4) x.closePath(); x.stroke(); }
+  CAM.pts.forEach(([pu, pv], i) => { x.beginPath(); x.arc(pu * u.width, pv * u.height, r, 0, 7); x.fill(); x.fillText(String(i + 1), pu * u.width + r * 1.4, pv * u.height - r); });
+  const n = CAM.pts.length;
+  $('#camCalNote').textContent = n < 4 ? t('cam_click').replace('{n}', n + 1).replace('{name}', t(CAM_NAMES[n])) : t('cam_done');
+  $('#camCalSave').disabled = n !== 4;
+}
+function camCalSave() {
+  const ref = ['calX0', 'calY0', 'calX1', 'calY1'].map(id => +$('#' + id).value);
+  if (!(ref[2] > ref[0] && ref[3] > ref[1])) { log('reference rectangle: X1 > X0 and Y1 > Y0', 'bad'); return; }
+  CAM.cal = {pts: CAM.pts.slice(), ref, k: CAM.K};
+  try { localStorage.setItem('tl-camcal', JSON.stringify(CAM.cal)); } catch {}
+  $('#camCalBox').classList.add('hidden');
+  try { CAM.img = camWarp(CAM.und, CAM.cal); draw(); } catch (e) { log('camera: ' + errText(e), 'bad'); }
+}
+
 async function connect() {
   if (app.link) return disconnect();
   const type = $('#linkType').value;
   if (type === 'wifiext') { try { localStorage.setItem('tl-ip', $('#novaIp').value.trim()); } catch {} }
   const link = type === 'usb' ? new SerialLink() : type === 'wifi' ? new WsLink($('#bridgeUrl').value.trim())
-    : type === 'wifiext' ? new ExtLink($('#novaIp').value.trim(), log) : new SimLink((a, b) => addBurn(a, b));
+    : type === 'wifiext' ? new ExtLink($('#novaIp').value.trim(), log) : new SimLink((a, b) => { if (!isRot()) addBurn(a, b); });
   link.onClose = e => { log('connection lost: ' + errText(e), 'bad'); disconnect(); };
   try { await link.open(); } catch (e) { log(errText(e), 'bad'); return; }
   app.link = link; app.exactBurn = type === 'sim'; app.settings = {}; app.burns = []; app.lastHead = null;
@@ -942,6 +1192,13 @@ async function connect() {
     if (/^ALARM/.test(m)) log('⚠ ' + m + ' ' + (ALARMS[+m.split(':')[1]] || ''), 'bad');
     else if (/^FF LD [01]/.test(m)) log(m.endsWith('1') ? 'lid opened' : 'lid closed', m.endsWith('1') ? 'bad' : 'sys');  // sent unprompted
     else if (/^FF (AL|ER)/.test(m)) log('⚠ NOVA ' + m + (m.startsWith('FF ER') ? ' ' + (FF_ERRORS[m.split(' ')[2]] || '') : ''), 'bad');
+    if (/^FF LD [01]/.test(m) && app.dev?.st) { app.dev.st.coverPlateState = +m.slice(-1); renderAccessories(); }
+    const rp = m.match(/^FF RP\s+(\d)/);  // rotary plugged in / out (sent unprompted)
+    if (rp) {
+      const on = rp[1] !== '0';
+      if (app.dev?.info?.rotary) { app.dev.info.rotary.isOnline = on; renderAccessories(); }
+      setWorkMode(on ? 'chuck' : 'flat', t(on ? 'rot_auto_on' : 'rot_auto_off'));
+    }
   };
   setPerms(false, false);
   $('#btnConnect').textContent = t('disconnect');
@@ -956,6 +1213,7 @@ async function connect() {
     if (app.settings.$32 && app.settings.$32 !== '1') log(t('laser_mode'), 'bad');
     regenerate();
   } catch (e) { log('identify failed (' + errText(e) + ') – try $I in the console', 'bad'); }
+  if (app.grbl && app.grbl.okAfterStatus) await refreshDevice(true);  // NOVA: modules + auto work mode
 }
 async function disconnect() {
   clearInterval(app.poll); app.poll = null; app.abort = true;
@@ -965,6 +1223,7 @@ async function disconnect() {
   try { await l?.close(); } catch {}
   setPerms(false, false);
   $('#btnConnect').textContent = t('connect'); $('#state').textContent = '—'; $('#state').className = 'badge';
+  app.dev = null; renderAccessories();
   log('disconnected', 'sys'); refreshButtons();
 }
 function stopNow() {
@@ -983,7 +1242,7 @@ function onStatus(st) {
   $('#vlaser').style.color = laserOn ? 'var(--burn)' : '';
   $('#vair').textContent = /[FM]/.test(st.acc) ? 'on' : 'off';
   $('#vf').textContent = st.feed ?? '—'; $('#vs').textContent = st.s ?? '—';
-  if (!app.exactBurn && app.lastHead && laserOn) addBurn(app.lastHead, p);
+  if (!app.exactBurn && app.lastHead && laserOn && !isRot()) addBurn(app.lastHead, p);
   app.lastHead = p.slice(); app.head = p.slice();
   draw();
 }
@@ -1467,7 +1726,7 @@ function rasterize(o) {
 }
 
 // ---------------------------------------------------------------- G-code generation
-function objLines(o, S, F, MY) {
+function objLines(o, S, F, YW) {
   const L = []; let fSet = false;
   const G1 = (s) => { L.push(s + (fSet ? '' : ` F${F}`)); fSet = true; };
   if (o.mode === 'fill') {
@@ -1478,7 +1737,7 @@ function objLines(o, S, F, MY) {
       while (i < R.W) { if (R.mask[row + i]) { let j = i; while (j < R.W && R.mask[row + j]) j++; runs.push([i, j]); i = j; } else i++; }
       if (!runs.length) continue;
       const seq = dir > 0 ? runs : runs.reverse().map(([a, b]) => [b, a]);
-      L.push(`G0 X${X(seq[0][0])} Y${f3(MY(R.y0 + (r + 0.5) * R.p))} S0`);
+      L.push(`G0 X${X(seq[0][0])} ${YW(R.y0 + (r + 0.5) * R.p)} S0`);
       seq.forEach(([a, b], k) => { if (k) G1(`G1 X${X(a)} S0`); G1(`G1 X${X(b)} S${S}`); });
       dir = -dir;
     }
@@ -1486,32 +1745,39 @@ function objLines(o, S, F, MY) {
     const g = geom(o);
     for (const poly of localPolys(o) || []) {
       const pts = poly.map(([u, v]) => toWorld(o, g, u, v));
-      L.push(`G0 X${f3(pts[0][0])} Y${f3(MY(pts[0][1]))} S0`);
-      pts.slice(1).forEach((q, i) => G1(`G1 X${f3(q[0])} Y${f3(MY(q[1]))}` + (i === 0 ? ` S${S}` : '')));
+      L.push(`G0 X${f3(pts[0][0])} ${YW(pts[0][1])} S0`);
+      pts.slice(1).forEach((q, i) => G1(`G1 X${f3(q[0])} ${YW(q[1])}` + (i === 0 ? ` S${S}` : '')));
     }
   }
   return L;
 }
 function genJob() {
   if (!ed.objs.length) return [];
-  const fl = $('#origin').value === 'fl', MY = y => fl ? BED.h - y : y;
+  const rot = isRot(), fl = !rot && $('#origin').value === 'fl', per = rotPer();
+  const YW = rot ? (y => `A${f3(y / per * 360)}`) : (y => `Y${f3(fl ? BED.h - y : y)}`);
   const smax = +app.settings.$30 || 1000, air = $('#air').checked;
-  const L = ['; ToocaaLaser job', `; origin ${fl ? 'front-left' : 'rear-left'}, $30=${smax}`, 'G21 G90', 'M4 S0'];
+  const L = ['; ToocaaLaser job', rot ? `; rotary (chuck) diameter ${rotDia()} mm, perimeter ${f3(per)} mm: Y -> A degrees`
+    : `; origin ${fl ? 'front-left' : 'rear-left'}, $30=${smax}`, 'G21 G90', 'M4 S0'];
+  if (rot) {  // like TOOCAA Studio: park X at the left edge, then put the head on the axis line
+    const b = groupBBox(ed.objs);
+    L.push(`G0 X${f3(Math.max(0, b.x0))} S0`, `G0 Y${f3(rotaryY(rotDia()))} S0`);
+  }
   if (air) L.push('M8');
   const order = [...ed.objs.filter(o => o.mode === 'fill'), ...ed.objs.filter(o => o.mode !== 'fill')];
   for (const o of order) {
     const pw = clamp(+o.power || 0, 0, 100), S = Math.round(pw / 100 * smax), F = clamp(Math.round(+o.speed || 1000), 60, 36000);
     const passes = clamp(Math.round(+o.passes || 1), 1, 20);
     L.push(`; ${o.name}: ${o.mode} ${pw}% ${F} mm/min x${passes}`);
-    const body = objLines(o, S, F, MY);
+    const body = objLines(o, S, F, YW);
     for (let k = 0; k < passes; k++) for (const l of body) L.push(l);
   }
   L.push('M5 S0'); if (air) L.push('M9');
+  if (rot) L.push(`G0 X0 Y${FLAT_BED.h}`);  // Studio's rotary end position (homeR)
   return L;
 }
 function analyse() {
   let x = 0, y = 0, abs = true, mot = 0, sp = 0, s = 0, f = 1000, len = 0, time = 0;
-  const segs = [], rapid = +app.settings.$110 || 12000;
+  const segs = [], rapid = +app.settings.$110 || 12000, rot = isRot(), per = rotPer();
   let bx0 = Infinity, by0 = Infinity, bx1 = -Infinity, by1 = -Infinity, inBed = true;
   for (const raw of app.job.lines) {
     const w = words(raw); if (!w.length) continue;
@@ -1520,7 +1786,9 @@ function analyse() {
       if (k === 'G') { if ([0, 1, 2, 3].includes(v)) mot = v; else if (v === 90) abs = true; else if (v === 91) abs = false; }
       else if (k === 'M') { if (v === 3 || v === 4) sp = v; else if (v === 5) sp = 0; }
       else if (k === 'S') s = v; else if (k === 'F') f = v;
-      else if (k === 'X') { nx = abs ? v : x + v; mv = true; } else if (k === 'Y') { ny = abs ? v : y + v; mv = true; }
+      else if (k === 'X') { nx = abs ? v : x + v; mv = true; }
+      else if (k === 'Y') { if (!rot) { ny = abs ? v : y + v; mv = true; } }  // rotary: machine Y stays on the axis
+      else if (k === 'A' && rot) { const d = v / 360 * per; ny = abs ? d : y + d; mv = true; }
     }
     if (mv) {
       const on = !!(sp && s > 0 && mot !== 0), d = Math.hypot(nx - x, ny - y);
@@ -1773,6 +2041,7 @@ function drawNow() {
   const M = (X, Y) => S(X, fl ? BED.h - Y : Y);             // machine mm -> px
   x.setTransform(dpr, 0, 0, dpr, 0, 0);
   x.fillStyle = col('--bed'); x.fillRect(0, 0, W, H);
+  if (CAM.img && $('#camShow').checked && !isRot()) { x.globalAlpha = +$('#camAlpha').value; x.drawImage(CAM.img, 0, 0, W, H); x.globalAlpha = 1; }
   for (let v = 0; v <= BED.w; v += 10) { x.strokeStyle = col(v % 50 ? '--grid' : '--grid2'); x.lineWidth = 1; x.beginPath(); x.moveTo(v * k + .5, 0); x.lineTo(v * k + .5, H); x.stroke(); }
   for (let v = 0; v <= BED.h; v += 10) { x.strokeStyle = col(v % 50 ? '--grid' : '--grid2'); x.beginPath(); x.moveTo(0, v * k + .5); x.lineTo(W, v * k + .5); x.stroke(); }
   x.fillStyle = col('--mut'); x.font = '11px system-ui'; const o0 = M(0, 0); x.fillText('0,0', o0[0] + 4, fl ? o0[1] - 4 : o0[1] + 12);
@@ -2003,10 +2272,23 @@ async function runJob(check) {
     app.running = false; app.paused = false; $('#btnPause').textContent = t('pause'); refreshButtons();
   }
 }
+// Rotary frame, laser off: head to the axis line, then trace the job outline
+// with X and A (Studio sends `FF BD X.. A.. X.. A.. D<Ø>` instead).
+async function frameRotary(b, f) {
+  if (!app.perms.motion) { log(t('need_motion'), 'bad'); return; }
+  let st; try { st = await app.grbl.status(); } catch (e) { log(errText(e), 'bad'); return; }
+  if (st.state !== 'Idle') { log('frame needs Idle, machine is ' + st.state, 'bad'); return; }
+  if (b.x0 < 0 || b.x1 > FLAT_BED.w) { log('frame X outside the bed – not sent', 'bad'); return; }
+  const per = rotPer(), A = y => f3(y / per * 360);
+  const cmds = [`G90 G21 G1 X${f3(b.x0)} Y${f3(rotaryY(rotDia()))} F${f} S0`];
+  for (const [x, y] of [[b.x0, b.y0], [b.x1, b.y0], [b.x1, b.y1], [b.x0, b.y1], [b.x0, b.y0]]) cmds.push(`G90 G1 X${f3(x)} A${A(y)} F${f} S0`);
+  for (const c of cmds) if (!(await gated(c))) return;
+}
 async function frame() {
   regenerate();
   const b = app.job.bounds; if (!b || !app.grbl) return;
   const f = +$('#jogFeed').value || 3000;
+  if (isRot()) return frameRotary(b, f);
   for (const [x, y] of [[b.x0, b.y0], [b.x1, b.y0], [b.x1, b.y1], [b.x0, b.y1], [b.x0, b.y0]])
     if (!(await moveHead(x, y, false, f))) return;
 }
@@ -2183,7 +2465,26 @@ $('#btnClear').addEventListener('click', () => { $('#log').textContent = ''; });
 if (!('serial' in navigator)) $('#linkType').value = 'sim';
 try { $('#novaIp').value = localStorage.getItem('tl-ip') || ''; } catch {}
 try { const m = localStorage.getItem('tl-module'); if (m && MATERIALS[m] !== undefined || m === '2') $('#module').value = m; } catch {}
-applyLang(); syncProps(); renderObjList(); refreshButtons(); draw();
+$('#workMode').addEventListener('change', () => applyWorkMode());
+$('#diameter').addEventListener('change', () => applyWorkMode());
+$('#btnAcc').addEventListener('click', () => refreshDevice(false));
+$('#camStart').addEventListener('click', camStart);
+$('#camShot').addEventListener('click', camShot);
+$('#camCal').addEventListener('click', camCalStart);
+$('#camShow').addEventListener('change', draw);
+$('#camAlpha').addEventListener('input', draw);
+$('#camCalReset').addEventListener('click', () => { CAM.pts = []; camCalDraw(); });
+$('#camCalCancel').addEventListener('click', () => $('#camCalBox').classList.add('hidden'));
+$('#camCalSave').addEventListener('click', camCalSave);
+$('#camCalCanvas').addEventListener('click', e => {
+  if (CAM.pts.length >= 4) return;
+  const r = e.currentTarget.getBoundingClientRect();
+  CAM.pts.push([(e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height]); camCalDraw();
+});
+navigator.mediaDevices?.addEventListener?.('devicechange', () => camList().catch(() => {}));
+camList().catch(() => {});
+try { const r = JSON.parse(localStorage.getItem('tl-rot') || 'null'); if (r) { $('#workMode').value = r.mode === 'chuck' ? 'chuck' : 'flat'; if (r.d) $('#diameter').value = r.d; } } catch {}
+applyLang(); applyWorkMode(false); syncProps(); renderObjList(); refreshButtons(); draw();
 (async () => {
   let saved = null;
   try { saved = JSON.parse(localStorage.getItem('tl-project') || 'null'); } catch {}

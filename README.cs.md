@@ -53,7 +53,7 @@ nevracejí a `$G`/`$#` nejsou podporované. Oba klienti to zvládají
 
 | Soubor | Co to je |
 |---|---|
-| [`index.html`](index.html) | **Webová aplikace** (jediný soubor, bez buildu). Editor motivů (více objektů, posun/zvětšení/otáčení myší, kopírovat/vložit/duplikovat, kopie do mřížky, zpět/znovu, text, tvary, SVG, PNG/JPG s rozptylem, gravírování obrysu i výplně, předvolby materiálů, projekty) a ovládání stroje: USB přes Web Serial, Wi-Fi přes most, simulátor, ověření, rámeček, odeslání, posun, autofokus, vzduch, konzole, audit `.lbdev`. CZ/EN. |
+| [`index.html`](index.html) | **Webová aplikace** (jediný soubor, bez buildu). Editor motivů (více objektů, posun/zvětšení/otáčení myší, kopírovat/vložit/duplikovat, kopie do mřížky, zpět/znovu, text, tvary, SVG, PNG/JPG s rozptylem, gravírování obrysu i výplně, předvolby materiálů, projekty) a ovládání stroje: USB přes Web Serial, Wi-Fi přes most, simulátor, ověření, rámeček, odeslání, posun, autofokus, vzduch, konzole, audit `.lbdev`, **panel doplňků** (FF F1/F2), **režim Rovný povrch / Kusový rotační** (sám se přepne po připojení rotačního modulu) a **kamera** pod motivem (korekce objektivu + kalibrace 4 body). CZ/EN. |
 | [`nova.py`](nova.py) | Knihovna + CLI v Pythonu: `probe`, `info`, `device` (dekódované `FF F1`/`FF F2`), `status`, `jog`, `home`, `unlock`, `check`, `run`, `hold`, `resume`, `stop` |
 | [`bridge.py`](bridge.py) | Lokální most (WebSocket ↔ NOVA přes Wi-Fi/USB), který zároveň servíruje aplikaci offline |
 | [`PROTOCOL.md`](PROTOCOL.md) | Vše, co víme o protokolu NOVA (USB, Wi-Fi 8002, příkazy `FF`, profil), se zdroji |

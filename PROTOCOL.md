@@ -206,6 +206,57 @@ rails 60 h. `inetractMode` was 0 right after Studio connected and 2 after
 commands were typed by hand. What 2 means isn't known yet; Studio only
 checks 1, 4 and 5.
 
+## 8. 📄 Rotary and camera (TOOCAA Studio code, 2026-10-15)
+
+**Accessories.** `FF F1` → `data.rotary.isOnline` and `laser.power` /
+`airAssist.isOnline`. When the rotary is online Studio switches to
+`isRotaryMode: true, rotaryMode: "chuck"`. Plugging the rotary in or out is
+reported unprompted as `FF RP 1` / `FF RP 0`. Studio offers two modes:
+"Flat surface" and "Chuck rotary".
+
+**Rotary geometry** (graphics-engine `$d`, `cO`, `pO`):
+
+| | |
+|---|---|
+| design area | 190 mm × π·Ø (Ø is entered by the user, default 70 mm) |
+| Y → A (chuck) | `A = y / (π·Ø) · 360` degrees (sign +1). Roller: `A = −y / (16π/32)` |
+| head Y during the job | `pO(Ø) = Ø ≥ 75 ? 210 : 210 + 5 − (75 − Ø)` |
+| job header | `G00 G17 G40 G21 G54`, `G90`, `M4`, `G0 X<minX>`, `G0 Y<pO>` |
+| vectors | `G0 X.. A.. F..`, `G1 X.. A.. S<power·10> F..` (absolute A) |
+| fill | `G90 G0 X.. A..`, then `G91` relative `G1 X.. A.. S..` |
+| job end | `M200 X1000 Y1000`, `M9`, `G1 S0`, `M5`, `G90`, `G0 X0Y210`, `M2` |
+| framing | `FF BD X<x0> A<a0> X<x1> A<a1> D<Ø>` (flat: `FF BD X Y X Y`) |
+| autofocus | `FF FC X<x> A<a> Y<pO>` |
+
+Other things Studio puts in every NOVA job: `; air 1|2|3` before each layer
+(3 for cutting or speed < 3000, 1 for power < 50 %, otherwise 2),
+`M200 X<a> Y<a>` acceleration (1250 for line and cut, 2000 for fill), and
+`M8` before every vector path.
+
+**USB job envelope** (`execute` → `sO`): `FF S0 <base64 name> <time s> [IsRotate]`,
+`FF S1 <thumbnail chunk>` … `FF S2 <last chunk>`, then **every G-code line
+as `FF S3 <line>`** (character-counted like normal G-code), then `FF S9`.
+Over Wi-Fi the same job is a file in `POST /v1/uploadFile` (`isRotate`).
+Not recorded yet whether the NOVA also accepts plain G-code for rotary.
+ToocaaLaser streams plain G-code with A words for now.
+
+**Camera.** A USB UVC webcam in the lid, `0c45:6368` or `1bcf:28c4`, label
+containing "TOOCAA". Studio opens it with `getUserMedia` at 2592 × 1944 and
+fixes barrel distortion with a WebGL shader, using one coefficient
+`k = −0.12`:
+
+```
+rsq = (u−½)² + ((v−½)/ratio)²,  lim = (¼ + (½/ratio)²) / (2·ratio)
+scale = k ≥ 0 ? 1 + k·lim : 1 / (1 − k·lim)
+src = ½ + (uv − ½) · (1 + k·rsq) / scale
+```
+
+It then corrects perspective from 4 user-clicked points (glfx `perspective`),
+crops to the work area and places the result under the design.
+`FF R0`–`FF R9` are the automatic calibration, used over Wi-Fi with
+`FF PT` photos. ToocaaLaser does the same in `index.html`: lens correction
+on the CPU and a homography from 4 clicked points, stored in `localStorage`.
+
 ## Still to verify on the machine
 
 1. `python3 nova.py probe <IP>`: port 8002 open, what `/v1/deviceInfo` returns.
@@ -217,3 +268,5 @@ checks 1, 4 and 5.
 6. A real job over USB: framing (`FF BD`), `FF S2 GCode` … `FF S9`, and what
    the NOVA replies while it runs.
 7. What `inetractMode` 1 and 2 mean.
+8. Rotary job over USB: does plain G-code with `A` work, or does the NOVA need
+   the `FF S0 … IsRotate` / `FF S3` envelope? Is the axis line really at `pO(Ø)`?
