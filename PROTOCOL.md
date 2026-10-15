@@ -238,8 +238,14 @@ Other things Studio puts in every NOVA job: `; air 1|2|3` before each layer
 `FF S1 <thumbnail chunk>` … `FF S2 <last chunk>`, then **every G-code line
 as `FF S3 <line>`** (character-counted like normal G-code), then `FF S9`.
 Over Wi-Fi the same job is a file in `POST /v1/uploadFile` (`isRotate`).
-Not recorded yet whether the NOVA also accepts plain G-code for rotary.
-ToocaaLaser streams plain G-code with A words for now.
+The thumbnail (Studio's `LaserSimulationModal`) is the job preview cropped to
+its content, a **120 × 120 PNG** (44 × 44 when the NOVA firmware is older than
+0.10.1) with the background `#fffbf9` made transparent. Its base64 is sent
+without the `data:image/png;base64,` prefix in **120-character** pieces. While
+the job runs the NOVA reports `FF S4 200` paused, `FF S5 200` resumed,
+`FF S6 200` stopped and `FF S9 200` finished, including when this happens on
+the touchscreen. ToocaaLaser sends this envelope by default on the NOVA
+(Expert → "Job on the NOVA screen"). Not recorded on the machine yet.
 
 **Camera.** A USB UVC webcam in the lid, `0c45:6368` or `1bcf:28c4`, label
 containing "TOOCAA". Studio opens it with `getUserMedia` at 2592 × 1944 and

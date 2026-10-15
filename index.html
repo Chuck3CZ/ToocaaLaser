@@ -293,6 +293,7 @@ details summary{cursor:pointer;color:var(--mut);font-size:12.5px}
     <div class="row">
       <label class="check"><input type="checkbox" id="novaExt" checked><span data-i18n="nova_ext">NOVA: air level per layer + acceleration (M200)</span></label>
       <label class="check"><input type="checkbox" id="frameNova"><span data-i18n="frame_nova" title="FF BD">Frame with the NOVA (FF BD)</span></label>
+      <label class="check"><input type="checkbox" id="novaEnv" checked><span data-i18n="nova_env" title="FF S0 … FF S3 … FF S9">Job on the NOVA screen (pause / stop there too)</span></label>
     </div>
     <div class="stats" id="jobStats"></div>
     <div class="bar"><i id="progress"></i></div>
@@ -509,6 +510,8 @@ const T = {
     h_shapes: 'Shapes', b_union: 'Union', b_sub: 'Subtract', b_int: 'Intersect', b_xor: 'Exclude', offset_mm: 'Offset mm', b_offset: 'Create offset',
     shapes_note: 'Subtract keeps the first selected shape and cuts the others out of it. Works on rectangles, circles and vectors (trace text or images first).',
     need_two: 'Select at least two shapes.', need_vec: 'Select rectangles, circles or vectors.', qr_prompt: 'Text or link for the QR code:', shape_empty: 'The result is empty.',
+    nova_env: 'Job on the NOVA screen (pause / stop there too)', dev_paused: 'Paused on the NOVA.', dev_resumed: 'Resumed on the NOVA.',
+    dev_stopped: 'Stopped on the NOVA.', dev_done: 'The NOVA reports the job finished.',
     ui_simple: 'Simple', ui_expert: 'Expert', th_auto: 'Theme: follow the system', th_light: 'Light theme', th_dark: 'Dark theme',
     confirm_motion: 'Allow the machine to move?\n\nKeep hands out of the machine and the lid closed.',
     h_jog: 'Jog (laser off)', step: 'Step mm', jogfeed: 'Feed mm/min', unlock: 'Unlock', focus: 'Autofocus', air_on: 'Air on', air_off: 'Air off',
@@ -584,6 +587,8 @@ const T = {
     h_shapes: 'Tvary', b_union: 'Sjednotit', b_sub: 'Odečíst', b_int: 'Průnik', b_xor: 'Vyloučit', offset_mm: 'Offset mm', b_offset: 'Vytvořit offset',
     shapes_note: 'Odečíst nechá první vybraný tvar a ostatní z něj vyřízne. Funguje s obdélníky, kruhy a vektory (text nebo obrázek nejdřív převeď na vektory).',
     need_two: 'Vyber aspoň dva tvary.', need_vec: 'Vyber obdélníky, kruhy nebo vektory.', qr_prompt: 'Text nebo odkaz pro QR kód:', shape_empty: 'Výsledek je prázdný.',
+    nova_env: 'Úloha na displeji NOVY (pauza a stop i tam)', dev_paused: 'Pozastaveno na NOVĚ.', dev_resumed: 'Pokračuje (z NOVY).',
+    dev_stopped: 'Zastaveno na NOVĚ.', dev_done: 'NOVA hlásí dokončenou úlohu.',
     ui_simple: 'Jednoduchý', ui_expert: 'Expert', th_auto: 'Vzhled podle systému', th_light: 'Světlý vzhled', th_dark: 'Tmavý vzhled',
     confirm_motion: 'Povolit pohyb stroje?\n\nRuce mimo stroj, víko zavřené.',
     h_jog: 'Posun (laser vyp.)', step: 'Krok mm', jogfeed: 'Rychlost mm/min', unlock: 'Odemknout', focus: 'Autofokus', air_on: 'Vzduch zap.', air_off: 'Vzduch vyp.',
@@ -846,6 +851,7 @@ class SimLink {
         else { mv.el += dt; dt = 0; }
       }
       if (!this.planner.length && (this.m.state === 'Run' || this.m.state === 'Jog')) this.m.state = 'Idle';
+      if (this.s9 && !this.planner.length && !this.inq.length) { this.s9 = false; this.out('FF S9 200'); }
     }
     this.pump();
   }
@@ -870,6 +876,9 @@ class SimLink {
     if (u === 'FF F1') return ['FF F1 ' + b64({data: {toocaaNova: {SN: 'TCNVBA0000000000', version: 'V1.0.2'}, laser: {SN: 'TCNVFA0000000000', power: 20, version: '0.9.2', isOnline: true}, airAssist: {isOnline: true, version: '0.9.4'}, rotary: {isOnline: false}}})];
     if (u === 'FF F2') return ['FF F2 ' + b64({airPumpState: this.m.coolant ? 1 : 0, alarm: 'NONE', coverPlateState: 0, grblState: busy ? 1 : 0, inetractMode: 0, laserTemperature: 28, rotationPartState: 0, usbConnectState: 1, workState: busy ? 1 : 0})];
     const h = u.split(/\s+/).slice(0, 2).join(' ');
+    if (h === 'FF S0' || h === 'FF S1' || h === 'FF S2') return ['ok'];
+    if (h === 'FF S3') return this.line(u.slice(6));
+    if (h === 'FF S9') { this.s9 = true; return ['ok']; }
     if (h === 'FF FC') { this.head[2] = this.m.pos[2] = 12.5; return ['FF FC 200 3.0']; }  // measured thickness
     if (h === 'FF BD' || h === 'FF BF') return [h + ' 200'];
     if (h === 'FF F3') return ['FF F3 ' + b64([{ssid: 'Workshop', passwordRequired: true}, {ssid: 'Guest', passwordRequired: false}])];
@@ -1364,6 +1373,10 @@ async function connect() {
     else if (/^FF LD [01]/.test(m)) log(m.endsWith('1') ? 'lid opened' : 'lid closed', m.endsWith('1') ? 'bad' : 'sys');  // sent unprompted
     else if (/^FF (AL|ER)/.test(m)) log('⚠ NOVA ' + m + (m.startsWith('FF ER') ? ' ' + (FF_ERRORS[m.split(' ')[2]] || '') : ''), 'bad');
     if (/^FF LD [01]/.test(m) && app.dev?.st) { app.dev.st.coverPlateState = +m.slice(-1); renderAccessories(); }
+    if (/^FF S4 200/.test(m) && app.running) { app.paused = true; $('#btnPause').textContent = t('resume'); log(t('dev_paused'), 'sys'); }
+    else if (/^FF S5 200/.test(m) && app.running) { app.paused = false; $('#btnPause').textContent = t('pause'); log(t('dev_resumed'), 'sys'); }
+    else if (/^FF S6 200/.test(m) && app.running) { app.abort = true; log(t('dev_stopped'), 'bad'); }
+    else if (/^FF S9 200/.test(m)) { app.devDone = true; log(t('dev_done'), 'ok'); }
     const rp = m.match(/^FF RP\s+(\d)/);  // rotary plugged in / out (sent unprompted)
     if (rp) {
       const on = rp[1] !== '0';
@@ -2729,6 +2742,36 @@ function localCheck(prog) {
   }
   return null;
 }
+// TOOCAA Studio over USB wraps every job so the NOVA shows it on its touchscreen
+// (name, time, thumbnail, progress) and can pause / stop it there:
+//   FF S0 <base64 name> <time s> [IsRotate]
+//   FF S1 <120 chars of the thumbnail PNG base64> … FF S2 <last chunk>
+//   FF S3 <G-code line>  (every line)        FF S9
+// The thumbnail is a 120×120 PNG (44×44 before NOVA firmware 0.10.1) on a
+// transparent background. The NOVA answers FF S4/S5/S6/S9 200 = paused /
+// resumed / stopped / finished.
+const jobName = () => ((ed.objs[0] && ed.objs[0].name) || 'ToocaaLaser').slice(0, 40);
+function jobThumbnail() {
+  const segs = (app.job.segs || []).filter(sg => sg[4]); if (!segs.length) return [];
+  const fw = app.dev?.info?.toocaaNova?.version || '';
+  const size = /^v?0\.(\d+)/i.test(fw) && +fw.replace(/^v?0\./i, '').split('.')[0] < 10 ? 44 : 120;
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const [a, b, c, d] of segs) { x0 = Math.min(x0, a, c); y0 = Math.min(y0, b, d); x1 = Math.max(x1, a, c); y1 = Math.max(y1, b, d); }
+  const k = (size - 4) / Math.max(x1 - x0, y1 - y0, 1e-3), ox = (size - (x1 - x0) * k) / 2, oy = (size - (y1 - y0) * k) / 2;
+  const c = document.createElement('canvas'); c.width = c.height = size;
+  const x = c.getContext('2d'); x.strokeStyle = '#3a3a3a'; x.lineWidth = 1; x.beginPath();
+  for (const [a, b, c2, d] of segs) { x.moveTo(ox + (a - x0) * k, oy + (b - y0) * k); x.lineTo(ox + (c2 - x0) * k, oy + (d - y0) * k); }
+  x.stroke();
+  const b64 = c.toDataURL('image/png').replace('data:image/png;base64,', ''), out = [];
+  for (let i = 0; i < b64.length; i += 120) out.push(b64.slice(i, i + 120));
+  return out;
+}
+function novaEnvelope(prog) {
+  const th = jobThumbnail(), time = (app.job.time || 0).toFixed(2);
+  return [`FF S0 ${b64utf8(jobName())} ${time}${isRot() ? ' IsRotate' : ''}`,
+    ...th.map((ch, i) => `FF ${i === th.length - 1 ? 'S2' : 'S1'} ${ch}`),
+    ...prog.map(l => 'FF S3 ' + l), 'FF S9'];
+}
 async function runJob(check) {
   const g = app.grbl; if (!g) return;
   regenerate();
@@ -2770,11 +2813,16 @@ async function runJob(check) {
       st = await g.status();
       if (st.state !== 'Check') { await g.cmd('$C').catch(() => {}); throw new Error('controller did not enter check mode'); }
     }
-    await g.streamLines(prog, n => { acked = n; if (n % 25 === 0 || n === prog.length) $('#progress').style.width = (100 * n / prog.length) + '%'; }, guard, () => app.paused);
+    const env = !check && noJog() && $('#novaEnv').checked;  // NOVA: job with screen + device pause
+    const send = env ? novaEnvelope(prog) : prog;
+    app.devDone = false;
+    await g.streamLines(send, n => { acked = n; if (n % 25 === 0 || n === send.length) $('#progress').style.width = (100 * n / send.length) + '%'; }, guard, () => app.paused);
+    let idle = 0;
     if (!check) for (;;) {
       guard();
       const s = await g.status();
-      if (s.state === 'Idle') break;
+      if (s.state === 'Idle' && (!env || app.devDone || ++idle >= 8)) break;  // envelope: wait for FF S9 200
+      if (s.state !== 'Idle') idle = 0;
       await sleep(250);
     }
     log(`${check ? 'check' : 'job'} OK – ${acked} lines in ${((performance.now() - t0) / 1000).toFixed(1)} s`, 'ok');
@@ -2884,7 +2932,7 @@ $('#btnHome').addEventListener('click', () => gated('$H', 120000));
 const ADV = ['#tDemo', '#tQr', '#tCopy', '#tPaste', '#tDup', '.toolbar .sep', '#showPaths', '[data-prop="name"]', '#multiInfo',
   'h3[data-i18n="h_arrange"]', 'row:#alL', 'row:#alignTo', 'row:#oFront', '[data-prop="interval"]', 'row:#presetSel', '#traceBox',
   'h3[data-i18n="h_shapes"]', 'row:#bUnion', 'row:#offMm', '[data-i18n="shapes_note"]', 'h3[data-i18n="h_array"]', 'row:#arrCols',
-  '#module', '#origin', '#novaExt', '#frameNova', '#btnCheck', '#btnDownload', '#novaSetup', '.kv', 'section:#allowMotion',
+  '#module', '#origin', '#novaExt', '#frameNova', '#novaEnv', '#btnCheck', '#btnDownload', '#novaSetup', '.kv', 'section:#allowMotion',
   '#jogFeed', 'row:#btnUnlock', '#btnAirOn', '#btnAirOff', 'row:#zUp', 'row:#thickSet', 'section:#cmd', '#ctrl', '#jobStats'];
 function tagAdvanced() {
   for (const sel of ADV) {
