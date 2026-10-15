@@ -874,6 +874,7 @@ class SimLink {
     if (u === '$$') return Object.entries(SIM_SETTINGS).map(([k, v]) => `$${k}=${v}`).concat('ok');
     if (u === '$G' || u === '$#') return [u === '$G' ? 'error:3' : 'error:1'];  // not supported by the NOVA
     if (u === '$') return ["[HLP:$$ $+ $# $S $L $G $I $N $x=val $Nx=line $J=line $SLP $C $X $H $F $E=err ~ ! ? ctrl-x]", 'ok'];
+    if (u === '$C' && !this.stockGrbl) return ['error:3'];  // the NOVA has no $C check mode
     if (u === '$C') {
       if (m.check) { this.rt('\x18'); return ['[MSG:Disabled]', 'ok']; }
       if (m.state !== 'Idle' || this.busy()) return ['error:8'];
@@ -2699,6 +2700,19 @@ function onKey(e) {
 }
 
 // ---------------------------------------------------------------- run / check / frame
+// The NOVA has no `$C` check mode (error:3, like `$G` and `$J=`). There the job
+// is checked offline by the built-in simulator in check mode: same G-code rules,
+// bed limits, feed rate required – nothing is sent to the machine.
+function localCheck(prog) {
+  const sim = new SimLink(() => {});
+  sim.m = {state: 'Idle', pos: [0, 0, 0], abs: true, motion: 0, spindle: 0, s: 0, f: 0, coolant: '', check: true, held: false};
+  sim.head = [0, 0, 0]; sim.planner = []; sim.inq = [];
+  for (let i = 0; i < prog.length; i++) {
+    const err = sim.line(prog[i]).find(r => /^(error|ALARM)/.test(r));
+    if (err) { const m = err.match(/^(error|ALARM):(\d+)/); return {n: i, e: new GrblErr(m[1] === 'ALARM' ? 'alarm' : 'error', +m[2], prog[i])}; }
+  }
+  return null;
+}
 async function runJob(check) {
   const g = app.grbl; if (!g) return;
   regenerate();
@@ -2707,6 +2721,13 @@ async function runJob(check) {
   if (!prog.length) return log(t('no_job'), 'bad');
   if (prog.some(l => /^[$\[]/.test(l) || /[?!~]/.test(l))) return log('job contains $ / [ESP] / real-time characters – refused', 'bad');
   const fires = firesLaser(prog);
+  if (check && (noJog() || app.noCheckMode)) {  // offline check for the NOVA
+    const bad = localCheck(prog);
+    if (bad) log(`check (offline) stopped at line ${bad.n + 1}: ${bad.e.code === 15 ? `outside the ${FLAT_BED.w} × ${FLAT_BED.h} mm bed (${prog[bad.n]})` : errText(bad.e)}`, 'bad');
+    else log(`check (offline, the NOVA has no $C) OK – ${prog.length} lines`, 'ok');
+    $('#progress').style.width = bad ? (100 * bad.n / prog.length) + '%' : '100%';
+    return;
+  }
   if (!check) {
     if (!app.perms.motion) return log(t('need_motion'), 'bad');
     if (fires && !app.perms.laser) return log(t('need_laser'), 'bad');
@@ -2727,7 +2748,9 @@ async function runJob(check) {
   };
   try {
     if (check) {
-      await g.cmd('$C'); st = await g.status();
+      try { await g.cmd('$C'); }
+      catch (e) { if (e.code === 3) { app.noCheckMode = true; app.running = false; g.quiet = false; refreshButtons(); return runJob(true); } throw e; }
+      st = await g.status();
       if (st.state !== 'Check') { await g.cmd('$C').catch(() => {}); throw new Error('controller did not enter check mode'); }
     }
     await g.streamLines(prog, n => { acked = n; if (n % 25 === 0 || n === prog.length) $('#progress').style.width = (100 * n / prog.length) + '%'; }, guard, () => app.paused);

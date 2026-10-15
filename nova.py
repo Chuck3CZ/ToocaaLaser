@@ -32,6 +32,7 @@ Recorded on a real NOVA over USB (firmware V1.0.2, see PROTOCOL.md):
   * `FF xx` commands get one `FF xx ...` reply line and no `ok`;
     `FF F1` (device info) and `FF F2` (status) carry base64 JSON.
   * `$G` -> error:3 and `$#` -> error:1 (not supported); `$I` and `$$` work.
+  * `$C` check mode -> error:3: `check` validates offline with grbl_sim.
   * `$J=` jogging -> error:3. `jog` falls back to `G91 G1 … S0` + `G90`
     and checks the target against the bed itself (the NOVA has $20=0, no
     soft limits). TOOCAA Studio has no X/Y jog at all.
@@ -848,10 +849,17 @@ class Nova:
             raise NovaError("job needs Idle state, machine is %s (%s)" % (st.state, st.raw))
 
         saved = self.perms
+        if check_only and self.ok_after_status:
+            return offline_check(prog, progress)  # NOVA: no $C
         if check_only:
             # In $C check mode Grbl parses everything but moves nothing.
             # Only lift the client-side gate once the controller confirms it.
-            self._toggle_check_mode()
+            try:
+                self._toggle_check_mode()
+            except GrblError as e:
+                if e.code != 3:
+                    raise
+                return offline_check(prog, progress)  # controller has no $C
             if self.status().state != "Check":
                 self._toggle_check_mode()
                 raise NovaError("controller did not enter check mode – aborting")
@@ -921,6 +929,25 @@ class Nova:
             except NovaError:
                 pass
             time.sleep(0.05)
+
+
+def offline_check(lines: list[str], progress=None) -> int:
+    """Check a job without the machine: the NOVA simulator (grbl_sim.py) in
+    check mode – same G-code rules and bed limits, nothing is sent."""
+    try:
+        import grbl_sim
+    except ImportError:
+        raise NovaError("controller has no $C check mode and grbl_sim.py is not next to nova.py")
+    m = grbl_sim.Machine()
+    m.check, m.state = True, "Check"
+    for i, ln in enumerate(lines):
+        for r in m.line(ln):
+            mm = re.match(r"(error|ALARM):(\d+)", r)
+            if mm:
+                raise (GrblError(int(mm.group(2)), ln) if mm.group(1) == "error" else GrblAlarm(int(mm.group(2))))
+        if progress:
+            progress(i + 1, len(lines))
+    return len(lines)
 
 
 # --------------------------------------------------------------------------

@@ -183,6 +183,18 @@ class TestStreaming(SimCase):
         self.assertEqual(self.m.pos[:2], [0.0, 0.0])
         self.assertEqual(n.status().state, "Idle")
 
+    def test_check_mode_stock_grbl_uses_dollar_c(self):
+        self.m.nova = False  # stock Grbl: real $C check mode on the controller
+        n = self.connect()
+        self.assertEqual(n.stream(self.JOB, check_only=True), len(self.JOB))
+        self.assertEqual(n.status().state, "Idle")
+
+    def test_nova_has_no_dollar_c(self):
+        n = self.connect()
+        with self.assertRaises(nova.GrblError) as cm:
+            n._toggle_check_mode()
+        self.assertEqual(cm.exception.code, 3)
+
     def test_check_mode_reports_bad_line(self):
         n = self.connect()
         with self.assertRaises(nova.GrblError) as cm:

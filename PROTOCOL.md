@@ -156,6 +156,7 @@ answers them, but they're not needed.
 | `FF xx` | one `FF xx …` reply line, **no `ok`** | – |
 | `$G` | `error:3` | `[GC:…]` |
 | `$#` | `error:1` | offsets |
+| `$C` check mode | `error:3`. ToocaaLaser checks offline with its simulator | `[MSG:Enabled]` |
 | `$J=` jogging | `error:3` (Studio has no X/Y jog either, only `G91 G0 Z…`) | jog |
 | status report | 4 axes `MPos:x,y,z,a` (A = rotary), `Pn:XY` when idle | 3 axes |
 | lid | `FF LD 1` / `FF LD 0` sent unprompted when the lid opens or closes | – |

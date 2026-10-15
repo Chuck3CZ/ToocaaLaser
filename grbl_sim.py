@@ -15,7 +15,7 @@ NOVA quirks recorded from a real machine over USB (2026-10, firmware V1.0.2,
 see PROTOCOL.md) are on by default, `--stock-grbl` turns them off:
   * `?` is answered with the status report **and an extra `ok`**;
   * status reports carry 4 axes (X,Y,Z,A) and `Pn:XY`;
-  * `$G` -> error:3, `$#` -> error:1, `$J=` (jogging) -> error:3;
+  * `$G` -> error:3, `$#` -> error:1, `$J=` (jogging) and `$C` (check) -> error:3;
   * `FF F1` / `FF F2` / `FF R8` reply with one `FF xx ...` line and no `ok`
     (F1/F2 payload = base64 JSON).
 """
@@ -200,6 +200,8 @@ class Machine:
                     "[TLO:0.000]", "[PRB:0.000,0.000,0.000:0]", "ok"]
         if u == "$":
             return ["[HLP:$$ $+ $# $S $L $G $I $N $x=val $Nx=line $J=line $SLP $C $X $H $F $E=err ~ ! ? ctrl-x]", "ok"]
+        if u == "$C" and self.nova:
+            return ["error:3"]  # the NOVA has no $C check mode
         if u == "$C":
             if self.state == "Check" or self.check:
                 self.realtime("\x18")
