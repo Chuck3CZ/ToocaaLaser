@@ -815,14 +815,26 @@ class Nova:
         # never fires on G0/S0). The controller has no soft limits, so check here.
         pos = self.work_pos(st)
         tx, ty = (pos[0] + x, pos[1] + y) if relative else (x, y)
-        if not (-1e-6 <= tx <= WORK_AREA_MM[0] + 1e-6 and -1e-6 <= ty <= WORK_AREA_MM[1] + 1e-6):
-            raise NotAllowed("target X%.1f Y%.1f is outside the %gx%g mm work area"
-                             % (tx, ty, *WORK_AREA_MM))
+        tw, th = self.travel()
+        if not (-1e-6 <= tx <= tw + 1e-6 and -1e-6 <= ty <= th + 1e-6):
+            raise NotAllowed("target X%.1f Y%.1f is outside the machine travel %gx%g mm"
+                             % (tx, ty, tw, th))
         try:
             self.command("%s G21 G1%s F%.0f S0" % ("G91" if relative else "G90", words, feed))
         finally:
             if relative:
                 self.command("G90")
+
+    def travel(self) -> tuple:
+        """Machine travel from `$$` ($130/$131 = 300 x 220 on the NOVA), at least
+        the 297 x 210 bed. Read once; head moves are limited by this."""
+        if not hasattr(self, "_travel"):
+            try:
+                st = self.settings()
+                self._travel = (max(WORK_AREA_MM[0], float(st.get("$130", 0))), max(WORK_AREA_MM[1], float(st.get("$131", 0))))
+            except (NovaError, ValueError):
+                self._travel = WORK_AREA_MM
+        return self._travel
 
     def work_pos(self, st: Status) -> tuple:
         """Position in the G-code frame (the NOVA reports Y mirrored)."""

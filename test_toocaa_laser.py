@@ -97,6 +97,10 @@ class TestMotion(SimCase):
         self.assertEqual(n.work_pos(n.wait_idle(5))[:2], (7.0, 5.0))
         self.assertTrue(self.m.absolute)
 
+    def test_nova_jog_uses_machine_travel(self):
+        n = self.connect(motion=True)
+        self.assertEqual(n.travel(), (300.0, 220.0))  # $130 / $131 of the real NOVA
+
     def test_nova_jog_outside_bed_refused_by_client(self):
         n = self.connect(motion=True)
         with self.assertRaises(nova.NotAllowed):
