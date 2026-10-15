@@ -516,7 +516,7 @@ const T = {
     need_two: 'Select at least two shapes.', need_vec: 'Select rectangles, circles or vectors.', qr_prompt: 'Text or link for the QR code:', shape_empty: 'The result is empty.',
     nova_env: 'Job on the NOVA screen (pause / stop there too)', dev_paused: 'Paused on the NOVA.', dev_resumed: 'Resumed on the NOVA.',
     dev_stopped: 'Stopped on the NOVA.', dev_done: 'The NOVA reports the job finished.',
-    ver_new: 'newer version on GitHub – reload (Ctrl+Shift+R)',
+    ver_new: 'newer version on GitHub – reload (Ctrl+Shift+R)', air_job_only: 'The NOVA runs the air pump only during a job (Job → Air assist).',
     ui_simple: 'Simple', ui_expert: 'Expert', th_auto: 'Theme: follow the system', th_light: 'Light theme', th_dark: 'Dark theme',
     confirm_motion: 'Allow the machine to move?\n\nKeep hands out of the machine and the lid closed.',
     h_jog: 'Jog (laser off)', step: 'Step mm', jogfeed: 'Feed mm/min', unlock: 'Unlock', focus: 'Autofocus', air_on: 'Air on', air_off: 'Air off',
@@ -594,7 +594,7 @@ const T = {
     need_two: 'Vyber aspoň dva tvary.', need_vec: 'Vyber obdélníky, kruhy nebo vektory.', qr_prompt: 'Text nebo odkaz pro QR kód:', shape_empty: 'Výsledek je prázdný.',
     nova_env: 'Úloha na displeji NOVY (pauza a stop i tam)', dev_paused: 'Pozastaveno na NOVĚ.', dev_resumed: 'Pokračuje (z NOVY).',
     dev_stopped: 'Zastaveno na NOVĚ.', dev_done: 'NOVA hlásí dokončenou úlohu.',
-    ver_new: 'na GitHubu je novější verze – obnov stránku (Cmd+Shift+R)',
+    ver_new: 'na GitHubu je novější verze – obnov stránku (Cmd+Shift+R)', air_job_only: 'NOVA pouští ofuk jen během úlohy (Úloha → Ofuk).',
     ui_simple: 'Jednoduchý', ui_expert: 'Expert', th_auto: 'Vzhled podle systému', th_light: 'Světlý vzhled', th_dark: 'Tmavý vzhled',
     confirm_motion: 'Povolit pohyb stroje?\n\nRuce mimo stroj, víko zavřené.',
     h_jog: 'Posun (laser vyp.)', step: 'Krok mm', jogfeed: 'Rychlost mm/min', unlock: 'Odemknout', focus: 'Autofokus', air_on: 'Vzduch zap.', air_off: 'Vzduch vyp.',
@@ -1099,6 +1099,10 @@ function refreshButtons() {
   $('#btnDownload').disabled = !hasJob;
   $$('[data-jog],#btnHome,#btnUnlock,#btnFocus,#btnAirOn,#btnAirOff,#zUp,#zDown,#zHome,#thickSet').forEach(b => b.disabled = !c || r || !canMove());
   $$('#wifiScan,#wifiJoin,#devRename').forEach(b => b.disabled = !c || r);
+  // the NOVA ignores bare M8/M9: TOOCAA Studio has no manual air switch, the pump runs
+  // inside a job (`; air 1|2|3` + M8 per path) – so these only make sense on other Grbl machines
+  const novaAir = c && noJog();
+  $$('#btnAirOn,#btnAirOff').forEach(b => { if (novaAir) b.disabled = true; b.title = novaAir ? t('air_job_only') : b.id === 'btnAirOn' ? 'M8' : 'M9'; });
   $('#btnHold').disabled = !c; $('#btnResume').disabled = !c;
   $('#btnSend').disabled = !c; $$('[data-q]').forEach(b => b.disabled = !c);
   $('#btnAcc').disabled = !c || r;
@@ -3126,7 +3130,7 @@ navigator.mediaDevices?.addEventListener?.('devicechange', () => camList().catch
 camList().catch(() => {});
 try { const r = JSON.parse(localStorage.getItem('tl-rot') || 'null'); if (r) { $('#workMode').value = r.mode === 'chuck' ? 'chuck' : 'flat'; if (r.d) $('#diameter').value = r.d; } } catch {}
 // ---- version: the build stamp of this file + the newest index.html commit on GitHub
-const APP_BUILD = '2026-10-15 14:40';
+const APP_BUILD = '2026-10-15 14:41';
 (async () => {
   const el = $('#appVer'); el.textContent = 'build ' + APP_BUILD;
   try {

@@ -276,6 +276,7 @@ on the CPU and a homography from 4 clicked points, stored in `localStorage`.
 | rename | `FF CN <base64 name>` | `FF CN 200` / `FF CN 500` |
 | consumable reset | `FF CW <C|Z|G|FM|CF|GR|CA>4 1` | (Studio doesn't wait) |
 | air level, per layer | comment line `; air 1|2|3` | `ok` |
+| manual air on / off | **none**: Studio has no air switch, and bare `M8` / `M9` outside a job does nothing on the NOVA (reported 2026-10-15) | |
 | acceleration, per layer | `M200 X<a> Y<a>` (1250 line, 2000 fill, 1000 at the end) | `ok` |
 
 The strings are encoded with UTF-8 base64 (Studio's `pk()`). None of these has
