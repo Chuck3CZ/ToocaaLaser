@@ -413,6 +413,14 @@ details summary{cursor:pointer;color:var(--mut);font-size:12.5px}
       <label><span data-i18n="thickness">Material thickness mm</span> <input type="number" id="thick" min="0" max="35" step="0.1" value="3" style="width:72px"></label>
       <button id="thickSet" title="G90 G0 Z(35 − t)" data-i18n="thick_set">Set Z</button>
     </div>
+    <div class="row hidden" id="rotJog" style="margin-top:8px">
+      <b data-i18n="rot_jog">Rotation</b>
+      <button id="aMinus" title="G91 G0 A−" aria-label="rotate back">⟲</button>
+      <button id="aPlus" title="G91 G0 A+" aria-label="rotate forward">⟳</button>
+      <select id="aStep" aria-label="rotation step"><option value="1">1°</option><option value="5">5°</option><option value="15" selected>15°</option><option value="45">45°</option><option value="90">90°</option><option value="180">180°</option></select>
+      <span class="note" id="aStepMm" style="margin:0"></span>
+      <button id="aZero" title="G92 A0" data-i18n="a_zero">A = 0 here</button>
+    </div>
   </section>
 
   <section>
@@ -506,6 +514,7 @@ const T = {
     cam_rot: 'The camera overlay is only for the flat bed.',
     cam_auto: 'Photo when the lid closes', cam_auto_shot: 'Lid closed – new camera photo on the plate.',
     cam_cross: 'Calibration crosses', cam_cross_added: 'Added 4 crosses at X20 Y20, X277 Y20, X277 Y190, X20 Y190. Burn them on paper or cardboard (Start job), leave it in place, then Calibrate and click the 4 cross centres. The reference numbers are already filled in.',
+    rot_jog: 'Rotation', a_zero: 'A = 0 here', a_zero_done: 'Current rotation is now A 0 – the top edge of the design starts here.',
     focus_pt: 'Place focus point', focus_pt_click: 'Click the plate where the NOVA should measure.', focus_pt_at: 'Focus point X {x} Y {y} mm – drag it to move.',
     focus_need_pt: 'Place a focus point first.', focus_done: 'Autofocus done – measured thickness {t} mm.', z_home: 'Z home', thickness: 'Material thickness mm', thick_set: 'Set Z',
     nova_ext: 'NOVA: air level per layer + acceleration (M200)', frame_nova: 'Frame with the NOVA (FF BD)', mode_roller: 'Roller rotary',
@@ -586,6 +595,7 @@ const T = {
     cam_rot: 'Obraz z kamery je jen pro rovnou plochu.',
     cam_auto: 'Snímek po zavření víka', cam_auto_shot: 'Víko zavřené – nový snímek z kamery na ploše.',
     cam_cross: 'Kalibrační kříže', cam_cross_added: 'Přidány 4 kříže na X20 Y20, X277 Y20, X277 Y190, X20 Y190. Vypal je na papír nebo karton (Spustit úlohu), nech ho ležet, pak dej Kalibrovat a klikni na středy 4 křížů. Čísla referenčního obdélníku jsou už vyplněná.',
+    rot_jog: 'Rotace', a_zero: 'A = 0 tady', a_zero_done: 'Aktuální natočení je teď A 0 – odsud začíná horní okraj motivu.',
     focus_pt: 'Umístit bod ostření', focus_pt_click: 'Klikni na plochu, kde má NOVA měřit.', focus_pt_at: 'Bod ostření X {x} Y {y} mm – přetažením ho posuneš.',
     focus_need_pt: 'Nejdřív umísti bod ostření.', focus_done: 'Autofokus hotový – naměřená tloušťka {t} mm.', z_home: 'Z domů', thickness: 'Tloušťka materiálu mm', thick_set: 'Nastavit Z',
     nova_ext: 'NOVA: ofuk podle vrstvy + akcelerace (M200)', frame_nova: 'Rámovat NOVOU (FF BD)', mode_roller: 'Válečkový rotační',
@@ -1103,7 +1113,7 @@ function refreshButtons() {
   $('#btnRun').disabled = !c || r || !hasJob || !canMove() || !app.job.inBed;
   $('#btnPause').disabled = !r;
   $('#btnDownload').disabled = !hasJob;
-  $$('[data-jog],#btnHome,#btnUnlock,#btnFocus,#btnAirOn,#btnAirOff,#zUp,#zDown,#zHome,#thickSet').forEach(b => b.disabled = !c || r || !canMove());
+  $$('[data-jog],#btnHome,#btnUnlock,#btnFocus,#btnAirOn,#btnAirOff,#zUp,#zDown,#zHome,#thickSet,#aMinus,#aPlus,#aZero').forEach(b => b.disabled = !c || r || !canMove());
   $$('#wifiScan,#wifiJoin,#devRename').forEach(b => b.disabled = !c || r);
   // the NOVA ignores bare M8/M9: TOOCAA Studio has no manual air switch, the pump runs
   // inside a job (`; air 1|2|3` + M8 per path) – so these only make sense on other Grbl machines
@@ -1144,6 +1154,19 @@ async function autofocus() {
   const th = parseFloat((r[0] || '').split(/\s+/)[3]);
   if (isFinite(th)) $('#thick').value = th;
   log(t('focus_done').replace('{t}', isFinite(th) ? th : '?'), 'ok');
+}
+// ---- manual rotation (rotary mode): the step is degrees of the object; for the
+// chuck that is the A value itself, for the roller it goes through Studio's cO()
+function aStepNote() {
+  const deg = +$('#aStep').value || 15;
+  $('#aStepMm').textContent = isRot() ? `≈ ${(deg / 360 * rotPer()).toFixed(1)} mm` : '';
+}
+async function rotateA(dir) {
+  const deg = (+$('#aStep').value || 15) * dir, a = toA(deg / 360 * rotPer());
+  if (await gated(`G91 G0 A${a}`)) await gated('G90');
+}
+async function zeroA() {
+  if (await gated('G92 A0')) log(t('a_zero_done'), 'ok');
 }
 async function moveZ(d) {
   if (Math.abs(d) > 35) return;
@@ -1191,6 +1214,7 @@ async function devRename() {
 function applyWorkMode(save = true) {
   const rot = isRot();
   $('#diaWrap').classList.toggle('hidden', !rot);
+  $('#rotJog').classList.toggle('hidden', !rot); aStepNote();
   BED.w = rot ? ROT_W : FLAT_BED.w; BED.h = rot ? +rotPer().toFixed(2) : FLAT_BED.h;
   $('#rotNote').textContent = rot ? t('rot_note').replace('{w}', BED.w).replace('{h}', BED.h.toFixed(1)) : '';
   if (save) { try { localStorage.setItem('tl-rot', JSON.stringify({mode: $('#workMode').value, d: rotDia()})); } catch {} }
@@ -3040,6 +3064,11 @@ $('#zUp').addEventListener('click', () => moveZ(+$('#zStep').value));
 $('#zDown').addEventListener('click', () => moveZ(-$('#zStep').value));
 $('#zHome').addEventListener('click', () => gated('$HZ', 60000));
 $('#thickSet').addEventListener('click', setThickness);
+$('#aMinus').addEventListener('click', () => rotateA(-1));
+$('#aPlus').addEventListener('click', () => rotateA(1));
+$('#aZero').addEventListener('click', zeroA);
+$('#aStep').addEventListener('change', aStepNote);
+$('#diameter').addEventListener('input', aStepNote);
 $('#novaExt').addEventListener('change', regenerate);
 $('#wifiScan').addEventListener('click', wifiScan);
 $('#wifiJoin').addEventListener('click', wifiJoin);
@@ -3177,7 +3206,7 @@ navigator.mediaDevices?.addEventListener?.('devicechange', () => camList().catch
 camList().catch(() => {});
 try { const r = JSON.parse(localStorage.getItem('tl-rot') || 'null'); if (r) { $('#workMode').value = r.mode === 'chuck' ? 'chuck' : 'flat'; if (r.d) $('#diameter').value = r.d; } } catch {}
 // ---- version: the build stamp of this file + the newest index.html commit on GitHub
-const APP_BUILD = '2026-10-15 15:27';
+const APP_BUILD = '2026-10-16 12:39';
 (async () => {
   const el = $('#appVer'); el.textContent = 'build ' + APP_BUILD;
   try {
