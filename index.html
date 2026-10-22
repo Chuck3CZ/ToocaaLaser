@@ -224,11 +224,12 @@ details summary{cursor:pointer;color:var(--mut);font-size:12.5px}
 
       <h3 data-i18n="h_process">Laser settings</h3>
       <div class="grid2">
-        <label><span data-i18n="mode">Mode</span><select data-prop="mode"><option value="line" data-i18n="mode_line">Line (outline / cut)</option><option value="fill" data-i18n="mode_fill">Fill (engrave area)</option></select></label>
+        <label><span data-i18n="mode">Mode</span><select data-prop="mode"><option value="line" data-i18n="mode_line">Line (outline / cut)</option><option value="fill" data-i18n="mode_fill">Fill (engrave area)</option><option value="fillinv" data-i18n="mode_fillinv">Inverted fill (engrave around)</option></select></label>
         <label><span data-i18n="power">Power %</span><input type="number" min="0" max="100" step="1" data-prop="power"></label>
         <label><span data-i18n="speed">Speed mm/min</span><input type="number" min="60" max="36000" step="100" data-prop="speed"></label>
         <label><span data-i18n="passes">Passes</span><input type="number" min="1" max="20" step="1" data-prop="passes"></label>
         <label class="fillOnly"><span data-i18n="interval">Line interval mm</span><input type="number" min="0.05" max="1" step="0.01" data-prop="interval"></label>
+        <label class="invOnly hidden"><span data-i18n="inv_margin">Margin around mm</span><input type="number" min="0" max="50" step="0.5" data-prop="invMargin"></label>
       </div>
       <div class="row" style="margin-top:8px">
         <select id="presetSel" class="grow" aria-label="own presets"></select>
@@ -486,7 +487,7 @@ const T = {
     p_name: 'Name', p_w: 'Width mm', p_h: 'Height mm', p_rot: 'Rotation °', lock: 'Keep proportions',
     flip_h: 'Mirror ↔', flip_v: 'Mirror ↕', center: 'Center on plate', h_text: 'Text', bold: 'Bold', italic: 'Italic',
     h_process: 'Laser settings', preset_save: 'Save as preset', preset_name: 'Preset name:',
-    mode: 'Mode', mode_line: 'Line (outline / cut)', mode_fill: 'Fill (engrave area)', power: 'Power %', speed: 'Speed mm/min', passes: 'Passes', interval: 'Line interval mm',
+    mode: 'Mode', mode_line: 'Line (outline / cut)', mode_fill: 'Fill (engrave area)', mode_fillinv: 'Inverted fill (engrave around)', inv_margin: 'Margin around mm', power: 'Power %', speed: 'Speed mm/min', passes: 'Passes', interval: 'Line interval mm',
     h_image: 'Image', threshold: 'Threshold', dither: 'Dither (photos)', invert: 'Invert',
     h_array: 'Copy into a grid', cols: 'Columns', rows: 'Rows', gap: 'Gap mm', make_array: 'Create copies',
     h_job: 'Job', origin: 'Machine origin', origin_fl: 'Front-left (Y up)', origin_rl: 'Rear-left (TOOCAA profile)', air: 'Air assist (fan on the material)',
@@ -567,7 +568,7 @@ const T = {
     p_name: 'Název', p_w: 'Šířka mm', p_h: 'Výška mm', p_rot: 'Otočení °', lock: 'Zachovat poměr stran',
     flip_h: 'Zrcadlit ↔', flip_v: 'Zrcadlit ↕', center: 'Na střed plochy', h_text: 'Text', bold: 'Tučně', italic: 'Kurzíva',
     h_process: 'Nastavení laseru', preset_save: 'Uložit jako předvolbu', preset_name: 'Název předvolby:',
-    mode: 'Režim', mode_line: 'Čára (obrys / řez)', mode_fill: 'Výplň (gravírování plochy)', power: 'Výkon %', speed: 'Rychlost mm/min', passes: 'Průchody', interval: 'Rozteč řádků mm',
+    mode: 'Režim', mode_line: 'Čára (obrys / řez)', mode_fill: 'Výplň (gravírování plochy)', mode_fillinv: 'Výplň invertovaná (gravírovat okolí)', inv_margin: 'Okraj kolem mm', power: 'Výkon %', speed: 'Rychlost mm/min', passes: 'Průchody', interval: 'Rozteč řádků mm',
     h_image: 'Obrázek', threshold: 'Práh', dither: 'Rozptyl (fotky)', invert: 'Invertovat',
     h_array: 'Kopírovat do mřížky', cols: 'Sloupce', rows: 'Řádky', gap: 'Mezera mm', make_array: 'Vytvořit kopie',
     h_job: 'Úloha', origin: 'Počátek stroje', origin_fl: 'Vpředu vlevo (Y nahoru)', origin_rl: 'Vzadu vlevo (profil TOOCAA)', air: 'Ofuk (vzduch na materiál)',
@@ -1565,6 +1566,12 @@ async function jog(dx, dy) {
 // ed.selSet = every selected object.
 const ed = {objs: [], sel: null, selSet: new Set(), images: {}, clip: null, undo: [], redo: [], nid: 1, srcSeq: 0, lastClick: null};
 const isRaster = o => o.kind === 'image' || o.kind === 'text';
+// fill = engrave the motif's area; fillinv = engrave its box (+ margin) except the motif
+const isFill = o => o.mode === 'fill' || o.mode === 'fillinv';
+function invBox(o) {
+  const g = geom(o), m = clamp(+(o.invMargin ?? 2) || 0, 0, 50), hw = g.cw / 2 + m, hh = g.ch / 2 + m;
+  return [[-hw, -hh], [hw, -hh], [hw, hh], [-hw, hh]].map(([lx, ly]) => [g.cx + lx * g.c - ly * g.s, g.cy + lx * g.s + ly * g.c]);
+}
 const r2 = v => Math.round(v * 100) / 100;
 const f3 = v => (Math.round(v * 1000) / 1000).toString();
 const selList = () => ed.objs.filter(o => ed.selSet.has(o));
@@ -1607,9 +1614,9 @@ function gridLines(o, smax, YW, ext, air) {
     for (const c of G.cells) {
       const S = Math.round(clamp(c.P, 0, 100) / 100 * smax), F = clamp(c.S, 60, 36000);
       L.push(`; cell ${c.P}% ${F} mm/min`);
-      if (ext) { const acc = o.mode === 'fill' ? 2000 : 1250; L.push(`; air ${F < 3000 ? 3 : c.P < 50 ? 1 : 2}`, `M200 X${acc} Y${acc}`); }
+      if (ext) { const acc = isFill(o) ? 2000 : 1250; L.push(`; air ${F < 3000 ? 3 : c.P < 50 ? 1 : 2}`, `M200 X${acc} Y${acc}`); }
       if (air) L.push('M8');
-      if (o.mode === 'fill') {
+      if (isFill(o)) {
         let dir = 1, first = true;
         for (let v = c.v0 + dv / 2; v < c.v1; v += dv) {
           const a = W(dir > 0 ? c.u0 : c.u1, v), b = W(dir > 0 ? c.u1 : c.u0, v);
@@ -1860,7 +1867,7 @@ function newObj(kind, props) {
   const raster = kind === 'image' || kind === 'text';
   return Object.assign({id: ed.nid++, kind, name: kind, x: 20, y: 20, w: 20, h: 20, sx: 1, sy: 1, rot: 0, flipH: false, flipV: false, locked: false,
     mode: raster ? 'fill' : 'line', power: 40, speed: raster ? 6000 : 3000, passes: 1, interval: 0.1,
-    threshold: 128, dither: false, invert: false}, props);
+    threshold: 128, dither: false, invert: false, invMargin: 2}, props);
 }
 function geom(o) {
   const cw = o.w * o.sx, ch = o.h * o.sy, a = o.rot * Math.PI / 180;
@@ -1907,6 +1914,7 @@ const pixCache = new WeakMap();
 function inBox(o, p, tol) { const [, , lx, ly, g] = toLocal(o, p.x, p.y); return Math.abs(lx) <= g.cw / 2 + tol && Math.abs(ly) <= g.ch / 2 + tol; }
 function hitPrecise(o, p) {
   const tol = 5 / p.k;
+  if (o.mode === 'fillinv') return true;   // the whole box is engraved
   if (isRaster(o)) {
     const pv = previewOf(o); if (!pv) return false;
     let d = pixCache.get(pv);
@@ -2269,7 +2277,10 @@ function previewOf(o) {
 }
 // rasterise one object onto the plate grid (pixel = line interval)
 function rasterize(o) {
-  const p = clamp(+o.interval || 0.1, 0.05, 1), b = worldBBox(o);
+  const inv = o.mode === 'fillinv', box = inv ? invBox(o) : null;
+  const p = clamp(+o.interval || 0.1, 0.05, 1), b = inv
+    ? {x0: Math.min(...box.map(q => q[0])), y0: Math.min(...box.map(q => q[1])), x1: Math.max(...box.map(q => q[0])), y1: Math.max(...box.map(q => q[1]))}
+    : worldBBox(o);
   const W = Math.ceil((b.x1 - b.x0) / p) + 1, H = Math.ceil((b.y1 - b.y0) / p) + 1;
   if (W * H > 16e6) throw new Error(`${o.name}: too large for fill at ${p} mm – raise the line interval`);
   const c = document.createElement('canvas'); c.width = W; c.height = H;
@@ -2288,6 +2299,15 @@ function rasterize(o) {
   const d = x.getImageData(0, 0, W, H).data;
   const thr = o.kind === 'image' ? o.threshold : 128;
   const mask = burnMask(d, W, H, thr, o.kind === 'image' && o.dither, o.kind === 'image' && o.invert);
+  if (inv) {  // keep the box (+ margin), drop the motif
+    const c2 = document.createElement('canvas'); c2.width = W; c2.height = H;
+    const y = c2.getContext('2d', {willReadFrequently: true});
+    y.setTransform(1 / p, 0, 0, 1 / p, -b.x0 / p, -b.y0 / p);
+    y.beginPath(); box.forEach(([wx, wy], i) => i ? y.lineTo(wx, wy) : y.moveTo(wx, wy)); y.closePath();
+    y.fillStyle = '#000'; y.fill();
+    const r = y.getImageData(0, 0, W, H).data;
+    for (let i = 0; i < mask.length; i++) mask[i] = r[i * 4 + 3] > 127 && !mask[i] ? 1 : 0;
+  }
   return {mask, W, H, x0: b.x0, y0: b.y0, p};
 }
 
@@ -2295,7 +2315,7 @@ function rasterize(o) {
 function objLines(o, S, F, YW) {
   const L = []; let fSet = false;
   const G1 = (s) => { L.push(s + (fSet ? '' : ` F${F}`)); fSet = true; };
-  if (o.mode === 'fill') {
+  if (isFill(o)) {
     const R = rasterize(o); let dir = 1;
     const X = i => f3(R.x0 + i * R.p);
     for (let r = 0; r < R.H; r++) {
@@ -2329,13 +2349,13 @@ function genJob() {
     L.push(`G0 X${f3(Math.max(0, b.x0))} S0`, `G0 Y${f3(rotaryY(rotDia()))} S0`);
   }
   if (air) L.push('M8');
-  const order = [...ed.objs.filter(o => o.mode === 'fill'), ...ed.objs.filter(o => o.mode !== 'fill')];
+  const order = [...ed.objs.filter(isFill), ...ed.objs.filter(o => !isFill(o))];
   for (const o of order) {
     const pw = clamp(+o.power || 0, 0, 100), S = Math.round(pw / 100 * smax), F = clamp(Math.round(+o.speed || 1000), 60, 36000);
     const passes = clamp(Math.round(+o.passes || 1), 1, 20);
     L.push(`; ${o.name}: ${o.mode} ${pw}% ${F} mm/min x${passes}`);
     if (ext) {  // TOOCAA Studio mk()/hk(): air pump level comment + acceleration per layer
-      const cut = o.mode === 'line' && pw >= 90, acc = o.mode === 'fill' ? 2000 : 1250;
+      const cut = o.mode === 'line' && pw >= 90, acc = isFill(o) ? 2000 : 1250;
       L.push(`; air ${cut || F < 3000 ? 3 : pw < 50 ? 1 : 2}`, `M200 X${acc} Y${acc}`);
     }
     if (air) L.push('M8');  // TOOCAA Studio: M8 before every path
@@ -2481,7 +2501,7 @@ function applyMaterial(m, op) {
   pushUndo();
   for (const o of items) {
     if (op !== 'fill' && isRaster(o)) { skipped++; continue; }
-    o.mode = op === 'fill' ? 'fill' : 'line'; o.power = pw; o.speed = sp; o.passes = ps;
+    o.mode = op === 'fill' ? (o.mode === 'fillinv' ? 'fillinv' : 'fill') : 'line'; o.power = pw; o.speed = sp; o.passes = ps;
     o.material = {n: m.n, t: m.t, op};
   }
   if (skipped) log(t('mat_skip').replace('{n}', skipped), 'msg');
@@ -2502,7 +2522,7 @@ function applyPreset(v) {
   pushUndo();
   for (const o of selList()) {
     for (const k of ['mode', 'speed', 'power', 'passes', 'interval']) if (p[k] !== undefined) o[k] = p[k];
-    if (isRaster(o)) o.mode = 'fill';
+    if (isRaster(o) && o.mode === 'line') o.mode = 'fill';
     o.material = '★ ' + p.name;
   }
   afterEdit();
@@ -2517,7 +2537,7 @@ function savePreset() {
 
 // ---------------------------------------------------------------- properties panel
 let propSnap = null;
-const LASER_PROPS = ['mode', 'power', 'speed', 'passes', 'interval'];
+const LASER_PROPS = ['mode', 'power', 'speed', 'passes', 'interval', 'invMargin'];
 function syncProps() {
   const o = ed.sel, n = ed.selSet.size;
   $('#rawBox').classList.toggle('hidden', !app.raw);
@@ -2530,7 +2550,7 @@ function syncProps() {
   $('#multiInfo').textContent = multi ? t('multi_info').replace('{n}', n) : '';
   $$('.multiOnly').forEach(e => e.classList.toggle('hidden', !multi));
   const vals = {name: o.name, x: r2(o.x), y: r2(o.y), W: r2(o.w * o.sx), H: r2(o.h * o.sy), rot: r2(o.rot), text: o.text, font: o.font,
-    bold: o.bold, italic: o.italic, mode: o.mode, power: o.power, speed: o.speed, passes: o.passes, interval: o.interval,
+    bold: o.bold, italic: o.italic, mode: o.mode, power: o.power, speed: o.speed, passes: o.passes, interval: o.interval, invMargin: o.invMargin ?? 2,
     threshold: o.threshold, dither: o.dither === true ? 'fs' : (o.dither || ''), invert: o.invert,
     g_cols: o.g_cols, g_rows: o.g_rows, g_pmin: o.g_pmin, g_pmax: o.g_pmax, g_smin: o.g_smin, g_smax: o.g_smax, g_lpow: o.g_lpow, g_lspd: o.g_lspd, g_labels: o.g_labels};
   $$('[data-prop]').forEach(el => {
@@ -2543,7 +2563,8 @@ function syncProps() {
   $('#traceBox').classList.toggle('hidden', multi || !isRaster(o));
   $('#gridBox').classList.toggle('hidden', multi || o.kind !== 'grid');
   $('[data-prop="mode"] option[value="line"]').disabled = selList().every(isRaster);
-  $$('.fillOnly').forEach(e => e.classList.toggle('hidden', o.mode !== 'fill'));
+  $$('.fillOnly').forEach(e => e.classList.toggle('hidden', !isFill(o)));
+  $$('.invOnly').forEach(e => e.classList.toggle('hidden', o.mode !== 'fillinv'));
   $('#thrVal').textContent = o.threshold;
   const label = m => !m ? '' : typeof m === 'string' ? m : `${matName(m)} · ${t('op_' + m.op)}`;
   const mats = [...new Set(selList().map(x => label(x.material)))];
@@ -2558,7 +2579,7 @@ function applyProp(el) {
   if (num && !isFinite(v)) return;
   const lock = $('#lockAspect').checked;
   if (LASER_PROPS.includes(k)) {
-    for (const x of selList()) { x[k] = k === 'mode' && isRaster(x) ? 'fill' : v; x.material = ''; }
+    for (const x of selList()) { x[k] = k === 'mode' && isRaster(x) && v === 'line' ? 'fill' : v; x.material = ''; }
   } else if (['threshold', 'dither', 'invert'].includes(k)) {
     for (const x of selList()) if (x.kind === 'image') x[k] = v;
   } else if (k.startsWith('g_')) {
@@ -2610,6 +2631,30 @@ function draw() {
   if (draw.q) return; draw.q = true;
   requestAnimationFrame(() => { draw.q = false; drawNow(); });
 }
+// inverted fill preview: the box (+ margin) in ink with the motif cut out
+function drawInverted(x, o, g, k, ink, c, dpr) {
+  const oc = drawInverted.c || (drawInverted.c = document.createElement('canvas'));
+  if (oc.width !== c.width || oc.height !== c.height) { oc.width = c.width; oc.height = c.height; }
+  const y = oc.getContext('2d');
+  y.setTransform(1, 0, 0, 1, 0, 0); y.globalCompositeOperation = 'source-over'; y.clearRect(0, 0, oc.width, oc.height);
+  y.setTransform(dpr, 0, 0, dpr, 0, 0); y.fillStyle = ink;
+  y.beginPath(); invBox(o).forEach(([wx, wy], i) => i ? y.lineTo(wx * k, wy * k) : y.moveTo(wx * k, wy * k)); y.closePath(); y.fill();
+  y.globalCompositeOperation = 'destination-out';
+  if (isRaster(o)) {
+    const pv = previewOf(o);
+    if (pv) {
+      y.save(); y.translate(g.cx * k, g.cy * k); y.rotate(o.rot * Math.PI / 180); y.scale(o.flipH ? -1 : 1, o.flipV ? -1 : 1);
+      for (let i = 0; i < 2; i++) y.drawImage(pv, -g.cw / 2 * k, -g.ch / 2 * k, g.cw * k, g.ch * k);  // preview alpha is 230
+      y.restore();
+    }
+  } else {
+    y.beginPath();
+    for (const poly of localPolys(o)) poly.forEach(([u, v], i) => { const [wx, wy] = toWorld(o, g, u, v); i ? y.lineTo(wx * k, wy * k) : y.moveTo(wx * k, wy * k); });
+    y.fill('evenodd');
+  }
+  y.globalCompositeOperation = 'source-over';
+  const a = x.globalAlpha; x.save(); x.setTransform(1, 0, 0, 1, 0, 0); x.globalAlpha = a * 0.75; x.drawImage(oc, 0, 0); x.restore();
+}
 function drawNow() {
   const c = $('#bed'), dpr = window.devicePixelRatio || 1, W = c.clientWidth || 600, H = W * BED.h / BED.w;
   if (c.width !== Math.round(W * dpr) || c.height !== Math.round(H * dpr)) { c.style.height = H + 'px'; c.width = Math.round(W * dpr); c.height = Math.round(H * dpr); }
@@ -2629,7 +2674,8 @@ function drawNow() {
   for (const o of ed.objs) {
     const g = geom(o);
     x.globalAlpha = (app.raw ? 0.25 : 1) * (o.locked ? 0.6 : 1);
-    if (isRaster(o)) {
+    if (o.mode === 'fillinv') drawInverted(x, o, g, k, ink, c, dpr);
+    else if (isRaster(o)) {
       const pv = previewOf(o);
       if (pv) { x.save(); x.translate(g.cx * k, g.cy * k); x.rotate(o.rot * Math.PI / 180); x.scale(o.flipH ? -1 : 1, o.flipV ? -1 : 1); x.drawImage(pv, -g.cw / 2 * k, -g.ch / 2 * k, g.cw * k, g.ch * k); x.restore(); }
     } else {
