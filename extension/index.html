@@ -36,8 +36,10 @@ a{color:var(--acc)}
     <h2>Proč je potřeba</h2>
     <p>ToocaaLaser běží na zabezpečené adrese <code>https://</code> a prohlížeč takovým stránkám nedovolí otevřít spojení na adresu v domácí síti (NOVA poslouchá na <code>http://IP:8002</code>). Rozšíření dělá prostředníka – stejně jako u TOOCAA Studia.</p>
     <ul>
-      <li>Pouští jen spojení <b>do lokální sítě</b> (192.168.x.x, 10.x.x.x, 172.16–31.x.x, localhost). Na internet nic nepošle.</li>
-      <li>Mluvit s ním smí jen stránka ToocaaLaser (a localhost pro offline verzi).</li>
+      <li>Pouští jen spojení na <b>IP adresu v domácí síti a port 8002</b> (port NOVA) – 192.168.x.x, 10.x.x.x, 172.16–31.x.x, 127.x.x.x. Doménová jména, jiné porty ani internet neprojdou.</li>
+      <li>Nesleduje přesměrování, neposílá cookies ani přihlašovací údaje a povolí jen GET/POST.</li>
+      <li>Mluvit s ním smí jen stránka ToocaaLaser (a <code>localhost:8765</code> pro offline verzi).</li>
+      <li>Pro srovnání: rozšíření „TOOCAA Connect“ od TOOCAA přeposílá na <i>jakoukoli</i> adresu, i na internet, a pouští k sobě i stránky z <code>127.0.0.1:5500</code> a <code>localhost:3000</code>.</li>
       <li>Zdrojový kód: <a href="background.js">background.js</a>, <a href="manifest.json">manifest.json</a> (pár desítek řádků).</li>
     </ul>
   </section>
@@ -51,6 +53,7 @@ a{color:var(--acc)}
       <li>Klikni <b>Načíst rozbalené</b> / Load unpacked a vyber složku <code>toocaalaser-connect</code>.</li>
       <li>Obnov stránku ToocaaLaser. V Připojení zvol <b>Wi-Fi (rozšíření prohlížeče)</b>, zadej IP z displeje NOVA (Nastavení → Wi-Fi), klikni <b>Připojit</b> a na displeji NOVA potvrď <b>Confirm</b>.</li>
     </ol>
+    <p><b>Aktualizace z verze 1.0:</b> stáhni nový ZIP, přepiš jím obsah složky <code>toocaalaser-connect</code> a v <code>chrome://extensions</code> u rozšíření klikni na ↻ (Znovu načíst). Verze 1.1 je bezpečnější – viz výše.</p>
     <p class="mut">Máš už od TOOCAA nainstalované „TOOCAA Connect“? To ToocaaLaser použije jen když běží lokálně na <code>http://127.0.0.1:5500</code> nebo <code>http://localhost:3000</code> – jinak ho TOOCAA k cizím stránkám nepustí.</p>
   </section>
 </main>

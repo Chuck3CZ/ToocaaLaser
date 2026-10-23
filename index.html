@@ -2115,10 +2115,15 @@ function svgToPolys(text) {
   const doc = new DOMParser().parseFromString(text, 'image/svg+xml');
   const src = doc.documentElement;
   if (!src || src.nodeName.toLowerCase() !== 'svg') throw new Error('not an SVG file');
-  src.querySelectorAll('script,foreignObject,image').forEach(n => n.remove());
+  // untrusted file: drop everything that can run script or load other content
+  src.querySelectorAll('script,foreignObject,image,iframe,embed,object,animate,set,animateMotion,animateTransform,discard')
+    .forEach(n => n.remove());
+  src.querySelectorAll('a').forEach(n => n.replaceWith(...n.childNodes));   // keep linked shapes, drop the link
+  for (const el of [src, ...src.querySelectorAll('*')])
+    for (const at of [...el.attributes])
+      if (/^on/i.test(at.name) || (/href$/i.test(at.name) && !/^#/.test(at.value.trim()))) el.removeAttribute(at.name);
   const host = $('#svgHost'); host.textContent = '';
   const svg = document.importNode(src, true);
-  for (const a of [...svg.attributes]) if (/^on/i.test(a.name)) svg.removeAttribute(a.name);
   host.appendChild(svg);
   try {
     const vb = svg.viewBox && svg.viewBox.baseVal;
