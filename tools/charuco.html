@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ChArUco Board</title>
+<meta name="description" content="Printable ChArUco calibration board (A4 landscape) for the ToocaaLaser lid camera lens correction.">
+<style>
+@page { size: A4 landscape; margin: 0; }
+:root { --bg: #f4f5f7; --fg: #14171c; --mut: #5d6573; --panel: #fff; --line: #dde1e7; --acc: #2457d6; --acc-fg: #fff; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg: #0e1116; --fg: #e7eaf0; --mut: #9aa3b2; --panel: #171b22; --line: #29303b; --acc: #5b8cff; --acc-fg: #08142e; } }
+:root[data-theme="dark"] { --bg: #0e1116; --fg: #e7eaf0; --mut: #9aa3b2; --panel: #171b22; --line: #29303b; --acc: #5b8cff; --acc-fg: #08142e; }
+html, body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+.info { max-width: 760px; margin: 24px auto; padding: 16px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; }
+.info h1 { font-size: 20px; margin: 0 0 8px; }
+.info li { margin: 4px 0; }
+.info .mut { color: var(--mut); }
+button { font: inherit; background: var(--acc); color: var(--acc-fg); border: 0; border-radius: 8px; padding: 9px 16px; font-weight: 600; cursor: pointer; }
+.sheet { width: 297mm; height: 210mm; margin: 0 auto 24px; background: #fff; box-shadow: 0 2px 12px rgba(0,0,0,.25); }
+.sheet img { width: 297mm; height: 210mm; display: block; }
+@media screen and (max-width: 1150px) { .sheet { width: calc(100vw - 32px); height: auto; aspect-ratio: 297 / 210; } .sheet img { width: 100%; height: auto; } }
+@media print { .info { display: none; } html, body { background: #fff; } .sheet { margin: 0; box-shadow: none; width: 297mm; height: 210mm; } .sheet img { width: 297mm; height: 210mm; } }
+</style>
+</head>
+<body>
+<div class="info">
+  <h1>Kalibrační tabule ChArUco · A4 naležato</h1>
+  <ol>
+    <li>Tiskni v <b>měřítku 100 % / Skutečná velikost</b> (ne „Přizpůsobit stránce“), A4 na šířku, okraje „Žádné“ nebo minimální.</li>
+    <li>Pravítkem změř čáru nahoře: má mít <b>přesně 100 mm</b>. Malá odchylka nevadí, důležité je, aby čtverce byly čtvercové.</li>
+    <li>Matný papír, bez lesku. Tabuli polož <b>úplně rovně</b> (klidně přilep na karton) na plochu NOVY a zavři víko.</li>
+    <li>V ToocaaLaser: Kamera → Korekce objektivu → <b>Snímek tabule</b>. Nejlepší jsou 3–5 snímků s tabulí na různých místech a jednou dvakrát podloženou pod úhlem.</li>
+  </ol>
+  <p class="mut">14 × 9 polí po 20 mm, značky 15 mm, slovník DICT_4X4_100 (OpenCV). Celkem 104 rohů – kalibrace funguje i když je část tabule mimo záběr.</p>
+  <button onclick="print()">Vytisknout</button>
+</div>
+<div class="sheet"><img src="charuco-a4.svg" alt="ChArUco calibration board 14 × 9"></div>
+</body>
+</html>

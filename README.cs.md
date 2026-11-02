@@ -35,7 +35,7 @@ W = Wi-Fi). Z toho plyne:
 | Autofokus | `G38.2` (oficiální makro LightBurn „FOCUS“), Studio: `FF FC X Y` | 📄 oficiální profil |
 | Vzduch | `M8` / `M9` | 📄 G-code z TOOCAA Studia |
 | Počátek | vzadu vlevo (`MirrorY: true` v profilu) | 📄 oficiální profil – ověř jedním posunem |
-| Kamera | běžná USB webkamera („2K AF WEBCAM“) | 📄 wiki – zatím nezapojeno |
+| Kamera | běžná USB webkamera („2K AF WEBCAM“) | ✅ ve webové aplikaci: snímek pod motiv, kalibrace vypálenými kříži, korekce objektivu tabulí ChArUco |
 | Zaměřovací kříž | ? | ❓ zatím nenalezeno |
 
 Jádrem je tedy standardní, veřejně zdokumentovaný protokol Grbl. Nadstavby
@@ -143,7 +143,8 @@ počítač a stroj.
 - [ ] Ověřit na skutečné NOVA (`probe`, `info`, autofokus, počátek)
 - [ ] Zaměřovací kříž / červené ukazovátko
 - [ ] Gravírování ve stupních šedi (proměnný výkon), seskupení
-- [ ] Kamera: stream, kalibrace, umístění motivu na fotku plochy
+- [x] Kamera: stream, kalibrace vypálenými kříži, fotka plochy pod motivem
+- [x] Korekce objektivu podle vytištěné tabule ChArUco ([stránka k tisku](https://chuck3cz.github.io/ToocaaLaser/tools/charuco.html)): OpenCV jednou spočítá model zkreslení téhle kamery (racionální, 8 koeficientů); pohled shora pak vzniká jedním převzorkováním a je opravený o tloušťku materiálu. Na syntetické kameře s rybím okem: průměrná chyba 0,13 mm místo 11 mm s obecným koeficientem ze Studia
 
 ## Zdroje
 

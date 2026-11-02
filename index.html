@@ -55,6 +55,8 @@ button{background:var(--field);border:1px solid var(--line);border-radius:8px;pa
 button:hover:not(:disabled){border-color:var(--acc)}
 button:disabled{opacity:.45;cursor:not-allowed}
 button.primary{background:var(--acc);color:var(--acc-fg);border-color:var(--acc);font-weight:600}
+a.btnlink{display:inline-block;background:var(--field);border:1px solid var(--line);border-radius:8px;padding:7px 11px;color:var(--fg);text-decoration:none}
+a.btnlink:hover{border-color:var(--acc)}
 button.stop{background:var(--bad);color:var(--bad-fg);border-color:var(--bad);font-weight:800;letter-spacing:.5px;padding:9px 18px}
 button.danger{color:var(--bad)}
 select,input[type=number],input[type=text],input[type=url],textarea{background:var(--field);border:1px solid var(--line);border-radius:8px;padding:6px 8px;min-width:0}
@@ -378,6 +380,19 @@ details summary{cursor:pointer;color:var(--mut);font-size:12.5px}
       </div>
       <div class="row"><button id="camCalReset" data-i18n="cam_reset">Reset points</button><button id="camCalCancel" data-i18n="cancel">Cancel</button><button id="camCalSave" class="primary" data-i18n="save" disabled>Save</button></div>
     </div>
+    <details id="lensBox" style="margin-top:10px">
+      <summary data-i18n="lens_h">Lens correction (ChArUco board)</summary>
+      <p class="note" data-i18n="lens_note">Removes the fisheye distortion of this particular camera.</p>
+      <div class="row">
+        <a class="btnlink" href="tools/charuco.html" target="_blank" rel="noopener" data-i18n="lens_print">Print the board</a>
+        <button id="lensShot" data-i18n="lens_shot" disabled>Photo of the board</button>
+        <button id="lensSolve" class="primary" data-i18n="lens_solve" disabled>Compute</button>
+        <button id="lensClear" data-i18n="lens_clear" disabled>Remove</button>
+      </div>
+      <label class="check"><input type="checkbox" id="camThick" checked><span data-i18n="cam_thick">Correct the photo for the material thickness (Z panel)</span></label>
+      <p class="note" id="lensStatus"></p>
+      <canvas id="lensCanvas" class="hidden" style="width:100%;border-radius:8px"></canvas>
+    </details>
     <video id="camVideo" playsinline muted class="hidden"></video>
     <p class="note" id="camNote" data-i18n="cam_note">The NOVA lid camera is a USB webcam (same cable). Calibrate once by clicking 4 corners, then "Photo to bed" lays the picture under your design.</p>
   </section>
@@ -513,6 +528,15 @@ const T = {
     cam_click: 'Click point {n}/4: {name}', cam_done: 'All 4 points set – Save.', cam_need_cal: 'Calibrate the camera first.',
     cam_c1: 'rear-left (X0 Y0)', cam_c2: 'rear-right (X1 Y0)', cam_c3: 'front-right (X1 Y1)', cam_c4: 'front-left (X0 Y1)',
     cam_rot: 'The camera overlay is only for the flat bed.',
+    lens_h: 'Lens correction (ChArUco board)', lens_print: 'Print the board', lens_shot: 'Photo of the board', lens_solve: 'Compute', lens_clear: 'Remove',
+    lens_note: 'Removes the fisheye distortion of this particular camera (once). 1) Print the board at 100 % on A4 landscape and check the 100 mm line with a ruler. 2) Lay it flat on the bed, close the lid, start the camera, "Photo of the board". Best result: 3–5 photos with the board shifted around and once or twice propped up at an angle. 3) Compute – then click the 4 calibration crosses once more.',
+    lens_loading: 'Loading OpenCV (10 MB, only needed for calibration)…', lens_found: '{c} corners, {m} markers found – photo {n} added.',
+    lens_few: 'Only {c} corners found – the whole board must be in view, flat and evenly lit. Try again.',
+    lens_done: 'Lens calibrated: RMS {rms} px from {n} photo(s), {p} points. Now click the 4 calibration crosses again.',
+    lens_bad: 'RMS {rms} px is high – the board was probably not flat or partly blurred. Better take the photos again.',
+    lens_saved: 'This camera is calibrated ({date}, RMS {rms} px, {n} photo(s)).', lens_none: 'Not calibrated yet – photos use TOOCAA Studio’s generic correction.',
+    lens_views: '{n} photo(s) ready to compute', lens_recal: 'The lens was calibrated anew – click the 4 calibration crosses again.',
+    cam_thick: 'Correct the photo for the material thickness (Z panel)',
     cam_auto: 'Photo when the lid closes', cam_auto_shot: 'Lid closed – new camera photo on the plate.',
     cam_cross: 'Calibration crosses', cam_cross_added: 'Added 4 crosses at X20 Y20, X277 Y20, X277 Y190, X20 Y190. Burn them on paper or cardboard (Start job), leave it in place, then Calibrate and click the 4 cross centres. The reference numbers are already filled in.',
     rot_jog: 'Rotation', a_zero: 'A = 0 here', a_zero_done: 'Current rotation is now A 0 – the top edge of the design starts here.',
@@ -594,6 +618,15 @@ const T = {
     cam_click: 'Klikni na bod {n}/4: {name}', cam_done: 'Všechny 4 body jsou zadané – Uložit.', cam_need_cal: 'Nejdřív kameru zkalibruj.',
     cam_c1: 'vzadu vlevo (X0 Y0)', cam_c2: 'vzadu vpravo (X1 Y0)', cam_c3: 'vpředu vpravo (X1 Y1)', cam_c4: 'vpředu vlevo (X0 Y1)',
     cam_rot: 'Obraz z kamery je jen pro rovnou plochu.',
+    lens_h: 'Korekce objektivu (tabule ChArUco)', lens_print: 'Vytisknout tabuli', lens_shot: 'Snímek tabule', lens_solve: 'Spočítat', lens_clear: 'Smazat',
+    lens_note: 'Odstraní zkreslení rybího oka u téhle konkrétní kamery (jednou). 1) Vytiskni tabuli na A4 naležato ve 100 % a pravítkem zkontroluj čáru 100 mm. 2) Polož ji rovně na plochu, zavři víko, zapni kameru, „Snímek tabule“. Nejlepší výsledek: 3–5 snímků s tabulí posunutou různě po ploše a jednou dvakrát podloženou pod úhlem. 3) Spočítat – pak ještě jednou klikni na 4 kalibrační kříže.',
+    lens_loading: 'Načítám OpenCV (10 MB, jen pro kalibraci)…', lens_found: 'Nalezeno {c} rohů a {m} značek – snímek {n} přidán.',
+    lens_few: 'Nalezeno jen {c} rohů – celá tabule musí být v záběru, rovně a rovnoměrně osvětlená. Zkus to znovu.',
+    lens_done: 'Objektiv zkalibrován: RMS {rms} px z {n} snímků, {p} bodů. Teď znovu klikni na 4 kalibrační kříže.',
+    lens_bad: 'RMS {rms} px je vysoké – tabule asi nebyla rovně nebo byla místy rozmazaná. Raději snímky pořiď znovu.',
+    lens_saved: 'Kamera je zkalibrovaná ({date}, RMS {rms} px, {n} snímků).', lens_none: 'Zatím nezkalibrováno – snímky používají obecnou korekci z TOOCAA Studia.',
+    lens_views: '{n} snímků připraveno ke spočítání', lens_recal: 'Objektiv byl znovu zkalibrován – klikni znovu na 4 kalibrační kříže.',
+    cam_thick: 'Opravit snímek o tloušťku materiálu (panel Z)',
     cam_auto: 'Snímek po zavření víka', cam_auto_shot: 'Víko zavřené – nový snímek z kamery na ploše.',
     cam_cross: 'Kalibrační kříže', cam_cross_added: 'Přidány 4 kříže na X20 Y20, X277 Y20, X277 Y190, X20 Y190. Vypal je na papír nebo karton (Spustit úlohu), nech ho ležet, pak dej Kalibrovat a klikni na středy 4 křížů. Čísla referenčního obdélníku jsou už vyplněná.',
     rot_jog: 'Rotace', a_zero: 'A = 0 tady', a_zero_done: 'Aktuální natočení je teď A 0 – odsud začíná horní okraj motivu.',
@@ -643,6 +676,7 @@ function applyLang() {
   $('#btnPause').textContent = t(app.paused ? 'resume' : 'pause');
   $('#rawNote').textContent = t('raw_note');
   fillPresets(); fillMaterials(); updateConnNote(); updateJobInfo(); syncProps();
+  if (typeof lensStatus === 'function' && $('#lensStatus')) lensStatus();
 }
 
 // ---------------------------------------------------------------- Grbl helpers (mirror nova.py)
@@ -1310,14 +1344,89 @@ async function camStart() {
   } catch (e) { CAM.stream = null; log('camera: ' + errText(e), 'bad'); }
   camButtons();
 }
-function camButtons() { const on = !!CAM.stream; $('#camShot').disabled = !on; $('#camCal').disabled = !on; }
-function camGrab() {  // one frame, lens-corrected, ~1300 px wide
+function camButtons() {
+  const on = !!CAM.stream; $('#camShot').disabled = !on; $('#camCal').disabled = !on;
+  $('#lensShot').disabled = !on; $('#lensSolve').disabled = !CAM.lensViews.length; $('#lensClear').disabled = !CAM.lens && !CAM.lensViews.length;
+}
+// ---- lens calibration from a printed ChArUco board (tools/charuco.html)
+CAM.lensViews = [];
+try { CAM.lens = JSON.parse(localStorage.getItem('tl-lens') || 'null'); } catch {}
+function lensStatus(msg) {
+  const L = CAM.lens;
+  $('#lensStatus').textContent = msg || (L ? t('lens_saved').replace('{date}', L.date).replace('{rms}', (+L.rms).toFixed(2)).replace('{n}', L.views) : t('lens_none'))
+    + ((CAM.lensViews || []).length ? ' · ' + t('lens_views').replace('{n}', CAM.lensViews.length) : '');
+}
+function lensShow(canvas, view) {
+  const c = $('#lensCanvas'); c.classList.remove('hidden'); c.width = canvas.width; c.height = canvas.height;
+  const x = c.getContext('2d'); x.drawImage(canvas, 0, 0);
+  if (view) { x.fillStyle = '#ff3b30'; for (const [u, v] of view.img) { x.beginPath(); x.arc(u, v, Math.max(3, c.width / 300), 0, 7); x.fill(); } }
+}
+async function lensShot() {
+  let raw; try { raw = camGrabRaw(); } catch (e) { log('camera: ' + errText(e), 'bad'); return; }
+  lensStatus(t('lens_loading'));
+  try {
+    const {cv} = await loadCV(), v = charucoDetect(cv, raw);
+    lensShow(raw, v);
+    if (v.ids.length < 20) { lensStatus(t('lens_few').replace('{c}', v.ids.length)); return; }
+    CAM.lensViews.push(v);
+    lensStatus(t('lens_found').replace('{c}', v.ids.length).replace('{m}', v.markers).replace('{n}', CAM.lensViews.length));
+  } catch (e) { lensStatus('OpenCV: ' + errText(e)); }
+  camButtons();
+}
+async function lensSolve() {
+  try {
+    const {cv} = await loadCV(), L = charucoCalibrate(cv, CAM.lensViews);
+    CAM.lens = L; lensCache.key = '';
+    try { localStorage.setItem('tl-lens', JSON.stringify(L)); } catch {}
+    CAM.lensViews = [];
+    const msg = t('lens_done').replace('{rms}', L.rms.toFixed(2)).replace('{n}', L.views).replace('{p}', L.points);
+    log(msg, L.rms < 1.5 ? 'ok' : 'bad'); if (L.rms >= 1.5) log(t('lens_bad').replace('{rms}', L.rms.toFixed(2)), 'bad');
+    lensStatus(msg);
+    try { lensShow(camGrab()); } catch {}
+    camButtons(); if (CAM.stream) camCalStart();   // the crosses must be clicked again on the new straight image
+  } catch (e) { lensStatus('OpenCV: ' + errText(e)); }
+}
+function lensClear() {
+  CAM.lens = null; CAM.lensViews = []; lensCache.key = '';
+  try { localStorage.removeItem('tl-lens'); } catch {}
+  $('#lensCanvas').classList.add('hidden'); lensStatus(); camButtons();
+}
+function camGrabRaw() {  // one frame as the camera sees it, ~1300 px wide
   const v = $('#camVideo'); if (!v.videoWidth) throw new Error('camera not running');
   const w = Math.min(1296, v.videoWidth), h = Math.round(w * v.videoHeight / v.videoWidth);
   const c = document.createElement('canvas'); c.width = w; c.height = h;
   c.getContext('2d').drawImage(v, 0, 0, w, h);
-  return undistort(c, CAM.K);
+  return c;
 }
+// straightened frame: this camera's ChArUco model if calibrated, else Studio's generic k
+const camStraight = raw => CAM.lens ? lensUndistort(raw, CAM.lens) : undistort(raw, CAM.K);
+function camGrab() { return camStraight(camGrabRaw()); }
+const lensId = L => L ? `${L.date}:${(+L.rms).toFixed(4)}:${L.points}` : '';
+const calOk = c => !!c && (CAM.lens ? c.lens === lensId(CAM.lens) && !!c.norm : !c.lens);
+const camThick = () => $('#camThick').checked ? Math.max(0, +$('#thick').value || 0) : 0;
+// lens-calibrated top view: each bed pixel → perspective (4 crosses, lifted to the
+// material surface) → lens distortion → raw pixel. One resampling, nothing cropped.
+function camWarpLens(raw, L, cal, z) {
+  const PX = 4, W = FLAT_BED.w * PX, H = FLAT_BED.h * PX, w = raw.width, h = raw.height;
+  const [x0, y0, x1, y1] = cal.ref;
+  const Hm = liftHomography(homography([[x0, y0], [x1, y0], [x1, y1], [x0, y1]], cal.norm), [1, 1, 0, 0], z);
+  const sx = w / L.w, sy = h / L.h, [fx, fy, cx, cy] = L.K, rmax = lensRmax(L.D);
+  const sd = raw.getContext('2d').getImageData(0, 0, w, h).data;
+  const out = document.createElement('canvas'); out.width = W; out.height = H;
+  const ox = out.getContext('2d'), od = ox.createImageData(W, H), Dd = od.data;
+  for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) {
+    const X = (i + 0.5) / PX, Y = (j + 0.5) / PX, q = Hm[6] * X + Hm[7] * Y + Hm[8];
+    const xn = (Hm[0] * X + Hm[1] * Y + Hm[2]) / q, yn = (Hm[3] * X + Hm[4] * Y + Hm[5]) / q;
+    if (!(Math.hypot(xn, yn) <= rmax)) continue;
+    const [xd, yd] = lensDistort(xn, yn, L.D), u = (xd * fx + cx) * sx - 0.5, v = (yd * fy + cy) * sy - 0.5;
+    if (!(u >= 0 && v >= 0 && u < w - 1 && v < h - 1)) continue;
+    const ux = u | 0, vy = v | 0, ax = u - ux, ay = v - vy, a = (vy * w + ux) * 4, b = a + 4, c = a + w * 4, d = c + 4, o = (j * W + i) * 4;
+    for (let k = 0; k < 3; k++) Dd[o + k] = (sd[a + k] * (1 - ax) + sd[b + k] * ax) * (1 - ay) + (sd[c + k] * (1 - ax) + sd[d + k] * ax) * ay;
+    Dd[o + 3] = 255;
+  }
+  ox.putImageData(od, 0, 0); return out;
+}
+const camRender = (raw, und, cal) => cal.norm && CAM.lens ? camWarpLens(raw, CAM.lens, cal, camThick()) : camWarp(und, cal);
 function undistort(src, k) {  // TOOCAA Studio's fisheye fragment shader, on the CPU
   const w = src.width, h = src.height, sd = src.getContext('2d').getImageData(0, 0, w, h).data;
   const out = document.createElement('canvas'); out.width = w; out.height = h;
@@ -1333,6 +1442,197 @@ function undistort(src, k) {  // TOOCAA Studio's fisheye fragment shader, on the
     D[i] = sd[j]; D[i + 1] = sd[j + 1]; D[i + 2] = sd[j + 2]; D[i + 3] = 255;
   }
   ox.putImageData(od, 0, 0); return out;
+}
+// ---- lens model (ChArUco calibration)
+// OpenCV pinhole + distortion model: D = [k1, k2, p1, p2, k3, k4, k5, k6]
+// (rational: radial = (1 + k1 r² + k2 r⁴ + k3 r⁶) / (1 + k4 r² + k5 r⁴ + k6 r⁶)).
+// Fitted once from photos of a printed ChArUco board (OpenCV.js, loaded only
+// for that); afterwards straightening runs here without OpenCV.
+const LENS_BOARD = {sx: 14, sy: 9, square: 20, marker: 15, dict: 'DICT_4X4_100'};  // 280 × 180 mm on A4
+function lensDistort(xn, yn, D) {
+  const [k1 = 0, k2 = 0, p1 = 0, p2 = 0, k3 = 0, k4 = 0, k5 = 0, k6 = 0] = D;
+  const r2 = xn * xn + yn * yn, r4 = r2 * r2, r6 = r4 * r2;
+  const rad = (1 + k1 * r2 + k2 * r4 + k3 * r6) / (1 + k4 * r2 + k5 * r4 + k6 * r6);
+  return [xn * rad + 2 * p1 * xn * yn + p2 * (r2 + 2 * xn * xn), yn * rad + p1 * (r2 + 2 * yn * yn) + 2 * p2 * xn * yn];
+}
+const lensRad = (r2, D) => { const [k1 = 0, k2 = 0, , , k3 = 0, k4 = 0, k5 = 0, k6 = 0] = D; return (1 + k1 * r2 + k2 * r2 * r2 + k3 * r2 ** 3) / (1 + k4 * r2 + k5 * r2 * r2 + k6 * r2 ** 3); };
+// largest undistorted radius where the model is still one-to-one (a strong
+// barrel polynomial folds back further out; there it has no inverse)
+function lensRmax(D) {
+  let prev = 0;
+  for (let r = 0.002; r <= 4; r += 0.002) {
+    const g = r * lensRad(r * r, D);
+    if (!(g > prev)) return r - 0.002;
+    prev = g;
+  }
+  return 4;
+}
+function lensUndistortPt(xd, yd, D, rmax = lensRmax(D)) {  // inverse of lensDistort, null outside the model
+  const rd = Math.hypot(xd, yd);
+  if (rd < 1e-12) return [0, 0];
+  const g = r => r * lensRad(r * r, D);
+  if (rd > g(rmax)) return null;
+  let lo = 0, hi = rmax;
+  for (let i = 0; i < 60; i++) { const m = (lo + hi) / 2; if (g(m) < rd) lo = m; else hi = m; }
+  let x = xd * lo / rd, y = yd * lo / rd;
+  for (let i = 0; i < 6; i++) {  // Gauss-Newton with the tangential terms
+    const [dx, dy] = lensDistort(x, y, D), ex = dx - xd, ey = dy - yd;
+    if (Math.abs(ex) + Math.abs(ey) < 1e-13) break;
+    const h = 1e-7, [ax, ay] = lensDistort(x + h, y, D), [bx, by] = lensDistort(x, y + h, D);
+    const j11 = (ax - dx) / h, j21 = (ay - dy) / h, j12 = (bx - dx) / h, j22 = (by - dy) / h, det = j11 * j22 - j12 * j21;
+    if (!det) break;
+    x -= (j22 * ex - j12 * ey) / det; y -= (-j21 * ex + j11 * ey) / det;
+  }
+  return [x, y];
+}
+// Camera matrix of the straightened image: same centre, focal scaled so the
+// area the board covered (L.ext, normalised units) fills the frame with a margin.
+function lensNewK(L) {
+  const [fx, fy, cx, cy] = L.K, {w, h} = L;
+  const [l, r, t, b] = L.ext || [cx / fx, (w - cx) / fx, cy / fy, (h - cy) / fy], m = 1.4;  // corners sit 1 square inside the board, the bed is larger still
+  const s = Math.min(cx / (l * fx * m), (w - cx) / (r * fx * m), cy / (t * fy * m), (h - cy) / (b * fy * m));
+  return [fx * s, fy * s, cx, cy];
+}
+const lensCache = {key: '', map: null};
+function lensMap(L, w, h) {  // for every output pixel: source pixel in the raw frame
+  const key = JSON.stringify([L.K, L.D, L.w, L.h, w, h]);
+  if (lensCache.key === key) return lensCache.map;
+  const sx = w / L.w, sy = h / L.h, [fx, fy, cx, cy] = L.K, [nfx, nfy, ncx, ncy] = lensNewK(L), rmax = lensRmax(L.D);
+  const map = new Float32Array(w * h * 2);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const xn = ((x + 0.5) / sx - ncx) / nfx, yn = ((y + 0.5) / sy - ncy) / nfy, i = (y * w + x) * 2;
+    if (Math.hypot(xn, yn) > rmax) { map[i] = map[i + 1] = -1; continue; }   // outside the model: leave black
+    const [xd, yd] = lensDistort(xn, yn, L.D);
+    map[i] = (xd * fx + cx) * sx - 0.5; map[i + 1] = (yd * fy + cy) * sy - 0.5;
+  }
+  lensCache.key = key; lensCache.map = map; return map;
+}
+function lensUndistort(src, L) {  // canvas → straightened canvas (same size, bilinear)
+  const w = src.width, h = src.height, sd = src.getContext('2d').getImageData(0, 0, w, h).data, map = lensMap(L, w, h);
+  const out = document.createElement('canvas'); out.width = w; out.height = h;
+  const ox = out.getContext('2d'), od = ox.createImageData(w, h), D = od.data;
+  for (let p = 0, n = w * h; p < n; p++) {
+    const u = map[p * 2], v = map[p * 2 + 1];
+    if (!(u >= 0 && v >= 0 && u < w - 1 && v < h - 1)) continue;
+    const x0 = u | 0, y0 = v | 0, ax = u - x0, ay = v - y0, a = (y0 * w + x0) * 4, b = a + 4, c = a + w * 4, d = c + 4, o = p * 4;
+    for (let k = 0; k < 3; k++)
+      D[o + k] = (sd[a + k] * (1 - ax) + sd[b + k] * ax) * (1 - ay) + (sd[c + k] * (1 - ax) + sd[d + k] * ax) * ay;
+    D[o + 3] = 255;
+  }
+  ox.putImageData(od, 0, 0); return out;
+}
+// Parallax: the crosses calibrate the bed plane; the top of a board t mm thick
+// is closer to the camera. With the straightened image's K, H = K·[r1 r2 t]
+// gives the camera pose, and the plane z = t is K·[r1 r2 (t + z·r3)].
+function liftHomography(H, Kn, z) {
+  if (!z) return H;
+  const [fx, fy, cx, cy] = Kn;
+  const inv = ([a, b, c]) => [(a - cx * c) / fx, (b - cy * c) / fy, c];   // K⁻¹·column
+  const col = j => inv([H[j], H[3 + j], H[6 + j]]);
+  const m1 = col(0), m2 = col(1), m3 = col(2), n = v => Math.hypot(...v);
+  const lam = 2 / (n(m1) + n(m2));
+  let r1 = m1.map(v => v * lam), r2 = m2.map(v => v * lam), tv = m3.map(v => v * lam);
+  if (tv[2] < 0) { r1 = r1.map(v => -v); r2 = r2.map(v => -v); tv = tv.map(v => -v); }
+  let r3 = [r1[1] * r2[2] - r1[2] * r2[1], r1[2] * r2[0] - r1[0] * r2[2], r1[0] * r2[1] - r1[1] * r2[0]];
+  // camera centre C = −Rᵀt; the material surface lies towards the camera
+  const Cz = -(r3[0] * tv[0] + r3[1] * tv[1] + r3[2] * tv[2]);
+  if (Cz < 0) r3 = r3.map(v => -v);
+  const t2 = tv.map((v, i) => v + z * r3[i]);
+  const K = ([a, b, c]) => [fx * a + cx * c, fy * b + cy * c, c];
+  const c1 = K(r1), c2 = K(r2), c3 = K(t2), s = 1 / c3[2];
+  return [c1[0] * s, c2[0] * s, c3[0] * s, c1[1] * s, c2[1] * s, c3[1] * s, c1[2] * s, c2[2] * s, 1];
+}
+
+// ---- OpenCV.js part: only needed while calibrating
+let cvPromise = null;
+function loadCV() {   // → Promise<{cv}>
+  if (cvPromise) return cvPromise;
+  cvPromise = new Promise((res, rej) => {
+    const s = document.createElement('script');
+    s.src = 'vendor/opencv-4.10.0.js'; s.async = true;
+    s.onerror = () => { cvPromise = null; rej(new Error('could not load OpenCV (vendor/opencv-4.10.0.js)')); };
+    s.onload = async () => {
+      try {
+        let cv = window.cv;
+        if (cv instanceof Promise) cv = await cv; else if (!cv.Mat) await new Promise(r => { cv.onRuntimeInitialized = r; });
+        res({cv});   // wrapped: the Emscripten module has its own then(), a Promise would chase it forever
+      } catch (e) { rej(e); }
+    };
+    document.head.append(s);
+  });
+  return cvPromise;
+}
+function cvBoard(cv) {
+  const B = LENS_BOARD, dict = cv.getPredefinedDictionary(cv[B.dict]);
+  const board = new cv.aruco_CharucoBoard(new cv.Size(B.sx, B.sy), B.square, B.marker, dict, new cv.Mat());
+  const det = new cv.aruco_CharucoDetector(board, new cv.aruco_CharucoParameters(), new cv.aruco_DetectorParameters(), new cv.aruco_RefineParameters(10, 3, true));
+  return {board, det, dict};
+}
+// detect the board in a raw (not straightened) frame → matched points
+function charucoDetect(cv, canvas, square = LENS_BOARD.square) {
+  const {det} = cvBoard(cv), src = cv.imread(canvas), gray = new cv.Mat();
+  cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
+  const cc = new cv.Mat(), ci = new cv.Mat(), mc = new cv.MatVector(), mi = new cv.Mat();
+  try {
+    det.detectBoard(gray, cc, ci, mc, mi);
+    const n = cc.rows, img = [], obj = [], ids = [], cols = LENS_BOARD.sx - 1;
+    for (let i = 0; i < n; i++) {
+      const id = ci.data32S[i];
+      ids.push(id); img.push([cc.data32F[i * 2], cc.data32F[i * 2 + 1]]);
+      obj.push([(id % cols + 1) * square, (Math.floor(id / cols) + 1) * square]);
+    }
+    return {ids, img, obj, markers: mi.rows, w: canvas.width, h: canvas.height};
+  } finally { [src, gray, cc, ci, mi].forEach(m => m.delete()); mc.delete(); }
+}
+// fit K and D from one or more views; returns the model + RMS reprojection error (px)
+function charucoCalibrate(cv, views) {
+  const {w, h} = views[0], om = new cv.MatVector(), im = new cv.MatVector();
+  for (const v of views) {
+    om.push_back(cv.matFromArray(v.obj.length, 1, cv.CV_32FC3, v.obj.flatMap(([X, Y]) => [X, Y, 0])));
+    im.push_back(cv.matFromArray(v.img.length, 1, cv.CV_32FC2, v.img.flat()));
+  }
+  const K = cv.matFromArray(3, 3, cv.CV_64F, [w * 0.6, 0, w / 2, 0, w * 0.6, h / 2, 0, 0, 1]);
+  const D = new cv.Mat(), rv = new cv.MatVector(), tv = new cv.MatVector(), si = new cv.Mat(), se = new cv.Mat(), pe = new cv.Mat();
+  // one flat view cannot separate everything: keep the centre and square pixels then
+  const many = views.length >= 3;
+  const flags = cv.CALIB_USE_INTRINSIC_GUESS | (many ? cv.CALIB_RATIONAL_MODEL : cv.CALIB_FIX_PRINCIPAL_POINT | cv.CALIB_FIX_ASPECT_RATIO);
+  const crit = new cv.TermCriteria(cv.TermCriteria_COUNT + cv.TermCriteria_EPS, 200, 1e-9);
+  try {
+    const rms = cv.calibrateCameraExtended(om, im, new cv.Size(w, h), K, D, rv, tv, si, se, pe, flags, crit);
+    const d = Array.from(D.data64F); while (d.length < 8) d.push(0);
+    const L = {w, h, K: [K.data64F[0], K.data64F[4], K.data64F[2], K.data64F[5]], D: d.slice(0, 8), rms, views: views.length,
+      points: views.reduce((s, v) => s + v.obj.length, 0), date: new Date().toISOString().slice(0, 10)};
+    // area the board covered, in normalised undistorted units (left, right, top, bottom)
+    const ext = [0, 0, 0, 0], rmax = lensRmax(L.D);
+    for (const v of views) for (const [u, q] of v.img) {
+      const p = lensUndistortPt((u - L.K[2]) / L.K[0], (q - L.K[3]) / L.K[1], L.D, rmax); if (!p) continue;
+      ext[0] = Math.max(ext[0], -p[0]); ext[1] = Math.max(ext[1], p[0]); ext[2] = Math.max(ext[2], -p[1]); ext[3] = Math.max(ext[3], p[1]);
+    }
+    if (ext.every(v => v > 0)) L.ext = ext;
+    return L;
+  } finally { [K, D, si, se, pe].forEach(m => m.delete()); [om, im, rv, tv].forEach(m => m.delete()); }
+}
+// printable board: OpenCV's own pattern, vectorised to an SVG with exact mm
+function charucoSVG(cv) {
+  const B = LENS_BOARD, PX = 6, {board} = cvBoard(cv), img = new cv.Mat();
+  const W = B.sx * B.square * PX, H = B.sy * B.square * PX;
+  board.generateImage(new cv.Size(W, H), img, 0, 1);
+  let rects = '';
+  for (let y = 0; y < H; y++) {
+    let x = 0;
+    while (x < W) {
+      if (img.data[y * W + x] < 128) { let e = x; while (e < W && img.data[y * W + e] < 128) e++; rects += `M${x} ${y}h${e - x}v1h${x - e}z`; x = e; }
+      else x++;
+    }
+  }
+  img.delete();
+  const bw = B.sx * B.square, bh = B.sy * B.square, ox = (297 - bw) / 2, oy = (210 - bh) / 2;
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="297mm" height="210mm" viewBox="0 0 297 210">
+<rect width="297" height="210" fill="#fff"/>
+<g transform="translate(${ox} ${oy}) scale(${1 / PX})"><path d="${rects}" fill="#000" shape-rendering="crispEdges"/></g>
+<path d="M${ox} ${oy - 3}h100" stroke="#000" stroke-width="0.4"/><path d="M${ox} ${oy - 4.5}v3M${ox + 100} ${oy - 4.5}v3" stroke="#000" stroke-width="0.4"/><text x="${ox + 104}" y="${oy - 2}" font-size="3" font-family="sans-serif">100 mm - check with a ruler | ToocaaLaser ChArUco ${B.sx}x${B.sy}, square ${B.square} mm, marker ${B.marker} mm, ${B.dict} | print at 100 %</text>
+</svg>`;
 }
 function homography(src, dst) {  // 3×3 H with dst ~ H·src, from 4 point pairs
   const A = [], B = [];
@@ -1367,12 +1667,13 @@ function camWarp(und, cal) {  // lens-corrected frame → top view of the flat b
 }
 function camShot() {
   if (isRot()) { log(t('cam_rot'), 'sys'); return; }
-  if (!CAM.cal) { log(t('cam_need_cal'), 'bad'); return camCalStart(); }
-  try { CAM.img = camWarp(camGrab(), CAM.cal); $('#camShow').checked = true; draw(); } catch (e) { log('camera: ' + errText(e), 'bad'); }
+  if (!calOk(CAM.cal)) { log(t(CAM.lens && CAM.cal ? 'lens_recal' : 'cam_need_cal'), 'bad'); return camCalStart(); }
+  try { const raw = camGrabRaw(); CAM.img = camRender(raw, CAM.cal.norm ? null : camStraight(raw), CAM.cal); $('#camShow').checked = true; draw(); }
+  catch (e) { log('camera: ' + errText(e), 'bad'); }
 }
 const CAM_NAMES = ['cam_c1', 'cam_c2', 'cam_c3', 'cam_c4'];
 function camCalStart() {
-  try { CAM.und = camGrab(); } catch (e) { log('camera: ' + errText(e), 'bad'); return; }
+  try { CAM.raw = camGrabRaw(); CAM.und = camStraight(CAM.raw); } catch (e) { log('camera: ' + errText(e), 'bad'); return; }
   CAM.pts = []; $('#camCalBox').classList.remove('hidden');
   let ref = CAM.cal && CAM.cal.ref; try { const r = localStorage.getItem('tl-calref'); if (r) ref = r.split(',').map(Number); } catch {}
   if (ref) ['calX0', 'calY0', 'calX1', 'calY1'].forEach((id, i) => { $('#' + id).value = ref[i]; });
@@ -1407,9 +1708,14 @@ function camCalSave() {
   const ref = ['calX0', 'calY0', 'calX1', 'calY1'].map(id => +$('#' + id).value);
   if (!(ref[2] > ref[0] && ref[3] > ref[1])) { log('reference rectangle: X1 > X0 and Y1 > Y0', 'bad'); return; }
   CAM.cal = {pts: CAM.pts.slice(), ref, k: CAM.K};
+  if (CAM.lens) {  // clicks on the straightened frame → normalised camera coordinates
+    const L = CAM.lens, [nfx, nfy, ncx, ncy] = lensNewK(L);
+    CAM.cal.norm = CAM.pts.map(([u, v]) => [(u * L.w - ncx) / nfx, (v * L.h - ncy) / nfy]);
+    CAM.cal.lens = lensId(L);
+  }
   try { localStorage.setItem('tl-camcal', JSON.stringify(CAM.cal)); } catch {}
   $('#camCalBox').classList.add('hidden');
-  try { CAM.img = camWarp(CAM.und, CAM.cal); draw(); } catch (e) { log('camera: ' + errText(e), 'bad'); }
+  try { CAM.img = camRender(CAM.raw, CAM.und, CAM.cal); draw(); } catch (e) { log('camera: ' + errText(e), 'bad'); }
 }
 
 async function connect() {
@@ -3241,6 +3547,12 @@ $('#camStart').addEventListener('click', camStart);
 $('#camShot').addEventListener('click', camShot);
 $('#camCal').addEventListener('click', camCalStart);
 $('#camCross').addEventListener('click', addCalCrosses);
+$('#lensShot').addEventListener('click', lensShot);
+$('#lensSolve').addEventListener('click', lensSolve);
+$('#lensClear').addEventListener('click', lensClear);
+$('#camThick').addEventListener('change', () => { try { localStorage.setItem('tl-camthick', $('#camThick').checked ? '1' : '0'); } catch {} });
+try { const v = localStorage.getItem('tl-camthick'); if (v !== null) $('#camThick').checked = v === '1'; } catch {}
+lensStatus(); camButtons();
 $('#camShow').addEventListener('change', draw);
 try { const v = localStorage.getItem('tl-camauto'); if (v !== null) $('#camAuto').checked = v === '1'; } catch {}
 $('#camAuto').addEventListener('change', e => { try { localStorage.setItem('tl-camauto', e.target.checked ? '1' : '0'); } catch {} });

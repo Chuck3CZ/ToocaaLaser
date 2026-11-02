@@ -36,7 +36,7 @@ W = Wi-Fi). It means:
 | Autofocus | `G38.2` (official LightBurn macro "FOCUS"), Studio: `FF FC X Y` | 📄 official profile |
 | Air assist | `M8` / `M9` | 📄 TOOCAA Studio's G-code |
 | Origin | rear-left (`MirrorY: true` in the profile) | 📄 official profile – check with one jog |
-| Camera | standard USB webcam ("2K AF WEBCAM") | 📄 wiki – not integrated yet |
+| Camera | standard USB webcam ("2K AF WEBCAM") | ✅ in the web app: photo under the design, burned-cross calibration, ChArUco lens correction |
 | Crosshair | ? | ❓ not found yet |
 
 So the core is the standard, public, documented Grbl protocol, not something
@@ -144,7 +144,8 @@ computer and the machine.
 - [ ] Verify on a real NOVA (`probe`, `info`, autofocus, origin)
 - [ ] Crosshair / red-dot pointer
 - [ ] Grayscale (variable power) image engraving, grouping
-- [ ] Camera: stream, calibration, placing designs on a photo of the bed
+- [x] Camera: stream, calibration from burned crosses, photo of the bed under the design
+- [x] Lens correction from a printed ChArUco board ([print page](https://chuck3cz.github.io/ToocaaLaser/tools/charuco.html)): OpenCV fits this camera's own distortion model (rational, 8 coefficients) once; the top view is then built in one resampling step and corrected for the material thickness. On a synthetic fisheye camera: 0.13 mm mean error vs 11 mm with the generic Studio coefficient
 
 ## Sources
 
