@@ -156,6 +156,12 @@ details summary{cursor:pointer;color:var(--mut);font-size:12.5px}
     <canvas id="bed" aria-label="work area"></canvas>
     <div class="row" style="margin-top:8px;justify-content:space-between">
       <div class="objlist" id="objList" style="margin-top:0"></div>
+      <span class="row" style="gap:4px;margin:0">
+        <button id="zoomOut" class="icon" data-i18n-title="zoom_out" title="Zoom out (−)">−</button>
+        <button id="zoomPct" data-i18n-title="zoom_reset" title="Whole plate (0)" style="min-width:64px">100 %</button>
+        <button id="zoomIn" class="icon" data-i18n-title="zoom_in" title="Zoom in (+)">+</button>
+        <button id="zoomSel" data-i18n="zoom_sel" data-i18n-title="zoom_sel_t" title="Zoom to the selection">⌖</button>
+      </span>
       <label class="check" style="margin:0"><input type="checkbox" id="showPaths"><span data-i18n="show_paths">Show toolpaths</span></label>
     </div>
     <p class="note" id="editHint" data-i18n="edit_hint"></p>
@@ -487,7 +493,7 @@ const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 // ---------------------------------------------------------------- i18n
 const T = {
   en: {
-    edit_hint: 'Click selects the shape under the pointer · click the same spot again (or Alt+click) for the object underneath · Shift+click adds · drag on empty space selects several · Ctrl+A all · corner ■ resizes · top ● rotates · arrows nudge 1 mm (Shift 10 mm) · 🔒 locked objects can be picked only from the list below',
+    edit_hint: 'Click selects the shape under the pointer · click the same spot again (or Alt+click) for the object underneath · Shift+click adds · drag on empty space selects several · Ctrl+A all · corner ■ resizes · top ● rotates · arrows nudge 1 mm (Shift 10 mm) · 🔒 locked objects can be picked only from the list below · zoom: Ctrl+wheel / pinch / + − 0, pan: Space+drag or the wheel when zoomed',
     multi_info: '{n} objects selected – settings apply to all of them.',
     h_arrange: 'Arrange', al_l: 'Align left', al_ch: 'Center horizontally', al_r: 'Align right', al_t: 'Align top', al_cv: 'Center vertically', al_b: 'Align bottom',
     dist_h: 'Space ↔', dist_v: 'Space ↕', align_to: 'Align to', align_sel: 'selection', align_plate: 'plate',
@@ -532,6 +538,7 @@ const T = {
     cam_click: 'Click point {n}/4: {name}', cam_done: 'All 4 points set – Save.', cam_need_cal: 'Calibrate the camera first.',
     cam_c1: 'rear-left (X0 Y0)', cam_c2: 'rear-right (X1 Y0)', cam_c3: 'front-right (X1 Y1)', cam_c4: 'front-left (X0 Y1)',
     cam_rot: 'The camera overlay is only for the flat bed.',
+    zoom_in: 'Zoom in (+, Ctrl+wheel)', zoom_out: 'Zoom out (−)', zoom_reset: 'Whole plate (0)', zoom_sel: '⌖ Selection', zoom_sel_t: 'Zoom to the selection',
     lens_h: 'Lens correction (ChArUco board)', lens_print: 'Print the board', lens_shot: 'Photo of the board', lens_solve: 'Compute', lens_clear: 'Remove',
     lens_note: 'Removes the fisheye distortion of this particular camera (once). 1) Print the board at 100 % on A4 landscape and check the 100 mm line with a ruler. 2) Lay it flat on the bed, close the lid, start the camera, "Photo of the board". Best result: 3–5 photos with the board shifted around and once or twice propped up at an angle. 3) Compute – then click the 4 calibration crosses once more.',
     lens_loading: 'Loading OpenCV (10 MB, only needed for calibration)…', lens_found: '{c} corners, {m} markers found – photo {n} added.',
@@ -583,7 +590,7 @@ const T = {
     lines: 'lines', burn: 'burn', est: 'est.', size: 'size', objects: 'objects', new_text: 'Text',
   },
   cs: {
-    edit_hint: 'Klik vybere tvar pod kurzorem · další klik na stejné místo (nebo Alt+klik) vybere objekt pod ním · Shift+klik přidá · tažením po prázdné ploše vybereš víc · Ctrl+A vše · roh ■ mění velikost · horní ● otáčí · šipky posun o 1 mm (Shift 10 mm) · 🔒 zamčené objekty jdou vybrat jen v seznamu pod plochou',
+    edit_hint: 'Klik vybere tvar pod kurzorem · další klik na stejné místo (nebo Alt+klik) vybere objekt pod ním · Shift+klik přidá · tažením po prázdné ploše vybereš víc · Ctrl+A vše · roh ■ mění velikost · horní ● otáčí · šipky posun o 1 mm (Shift 10 mm) · 🔒 zamčené objekty jdou vybrat jen v seznamu pod plochou · zoom: Ctrl+kolečko / dva prsty / + − 0, posun pohledu: mezerník+tažení nebo kolečko při přiblížení',
     multi_info: 'Vybráno {n} objektů – nastavení se použije na všechny.',
     h_arrange: 'Uspořádání', al_l: 'Zarovnat vlevo', al_ch: 'Na střed vodorovně', al_r: 'Zarovnat vpravo', al_t: 'Zarovnat nahoru', al_cv: 'Na střed svisle', al_b: 'Zarovnat dolů',
     dist_h: 'Rozmístit ↔', dist_v: 'Rozmístit ↕', align_to: 'Zarovnat k', align_sel: 'výběru', align_plate: 'ploše',
@@ -628,6 +635,7 @@ const T = {
     cam_click: 'Klikni na bod {n}/4: {name}', cam_done: 'Všechny 4 body jsou zadané – Uložit.', cam_need_cal: 'Nejdřív kameru zkalibruj.',
     cam_c1: 'vzadu vlevo (X0 Y0)', cam_c2: 'vzadu vpravo (X1 Y0)', cam_c3: 'vpředu vpravo (X1 Y1)', cam_c4: 'vpředu vlevo (X0 Y1)',
     cam_rot: 'Obraz z kamery je jen pro rovnou plochu.',
+    zoom_in: 'Přiblížit (+, Ctrl+kolečko)', zoom_out: 'Oddálit (−)', zoom_reset: 'Celá plocha (0)', zoom_sel: '⌖ Výběr', zoom_sel_t: 'Přiblížit na výběr',
     lens_h: 'Korekce objektivu (tabule ChArUco)', lens_print: 'Vytisknout tabuli', lens_shot: 'Snímek tabule', lens_solve: 'Spočítat', lens_clear: 'Smazat',
     lens_note: 'Odstraní zkreslení rybího oka u téhle konkrétní kamery (jednou). 1) Vytiskni tabuli na A4 naležato ve 100 % a pravítkem zkontroluj čáru 100 mm. 2) Polož ji rovně na plochu, zavři víko, zapni kameru, „Snímek tabule“. Nejlepší výsledek: 3–5 snímků s tabulí posunutou různě po ploše a jednou dvakrát podloženou pod úhlem. 3) Spočítat – pak ještě jednou klikni na 4 kalibrační kříže.',
     lens_loading: 'Načítám OpenCV (10 MB, jen pro kalibraci)…', lens_found: 'Nalezeno {c} rohů a {m} značek – snímek {n} přidán.',
@@ -2590,7 +2598,7 @@ function cropAlpha(c) {
 const FONTS = ['Arial', 'Helvetica', 'Verdana', 'Tahoma', 'Trebuchet MS', 'Segoe UI', 'Georgia', 'Times New Roman', 'Garamond', 'Courier New', 'Impact', 'Comic Sans MS', 'Brush Script MT', 'sans-serif', 'serif', 'monospace', 'cursive'];
 const GENERIC = new Set(['sans-serif', 'serif', 'monospace', 'cursive', 'fantasy']);
 function renderTextCanvas(o) {
-  const fs = 160, fam = GENERIC.has(o.font) ? o.font : `"${o.font}", sans-serif`;
+  const fs = 400, fam = GENERIC.has(o.font) ? o.font : `"${o.font}", sans-serif`;
   const font = `${o.italic ? 'italic ' : ''}${o.bold ? '700 ' : '400 '}${fs}px ${fam}`;
   const lines = (o.text || ' ').split('\n'), lh = fs * 1.25, pad = fs * 0.4;
   const m = document.createElement('canvas').getContext('2d'); m.font = font;
@@ -2678,12 +2686,13 @@ function burnMask(d, W, H, thr, dither, invert) {
   return out;
 }
 const previewCache = new Map();
-function previewOf(o) {
+function previewOf(o, need = 700) {   // need: longest side on screen in device px
   const src = ed.images[o.src]; if (!src) return null;
   const thr = o.kind === 'text' ? 128 : o.threshold, dith = o.kind === 'image' && o.dither, inv = o.kind === 'image' && o.invert;
-  const key = `${o.src}|${thr}|${dith}|${inv}|${getComputedStyle(document.documentElement).getPropertyValue('--ink')}`;
+  const cap = need <= 700 ? 700 : need <= 1400 ? 1400 : 2800;
+  const key = `${o.src}|${thr}|${dith}|${inv}|${cap}|${getComputedStyle(document.documentElement).getPropertyValue('--ink')}`;
   if (previewCache.has(key)) return previewCache.get(key);
-  const s = Math.min(1, 700 / Math.max(src.canvas.width, src.canvas.height));
+  const s = Math.min(1, cap / Math.max(src.canvas.width, src.canvas.height));
   const c = document.createElement('canvas'); c.width = Math.max(1, Math.round(src.canvas.width * s)); c.height = Math.max(1, Math.round(src.canvas.height * s));
   const x = c.getContext('2d', {willReadFrequently: true}); x.drawImage(src.canvas, 0, 0, c.width, c.height);
   const img = x.getImageData(0, 0, c.width, c.height), m = burnMask(img.data, c.width, c.height, thr, dith, inv);
@@ -3051,17 +3060,31 @@ function draw() {
   if (draw.q) return; draw.q = true;
   requestAnimationFrame(() => { draw.q = false; drawNow(); });
 }
+// ---- plate view: zoom + pan (VIEW.ox/oy = plate mm at the top-left corner of the canvas)
+const VIEW = {z: 1, ox: 0, oy: 0};
+function clampView() {
+  VIEW.z = clamp(VIEW.z, 1, 40);
+  VIEW.ox = clamp(VIEW.ox, 0, BED.w - BED.w / VIEW.z); VIEW.oy = clamp(VIEW.oy, 0, BED.h - BED.h / VIEW.z);
+}
+function zoomAt(f, mx, my) {  // keep the plate point (mx, my) under the pointer
+  const z2 = clamp(VIEW.z * f, 1, 40);
+  if (mx === undefined) { mx = VIEW.ox + BED.w / VIEW.z / 2; my = VIEW.oy + BED.h / VIEW.z / 2; }
+  VIEW.ox = mx - (mx - VIEW.ox) * VIEW.z / z2; VIEW.oy = my - (my - VIEW.oy) * VIEW.z / z2; VIEW.z = z2;
+  clampView(); zoomLabel(); draw();
+}
+function zoomReset() { VIEW.z = 1; VIEW.ox = VIEW.oy = 0; zoomLabel(); draw(); }
+function zoomLabel() { const el = $('#zoomPct'); if (el) el.textContent = Math.round(VIEW.z * 100) + ' %'; }
 // inverted fill preview: the box (+ margin) in ink with the motif cut out
 function drawInverted(x, o, g, k, ink, c, dpr) {
   const oc = drawInverted.c || (drawInverted.c = document.createElement('canvas'));
   if (oc.width !== c.width || oc.height !== c.height) { oc.width = c.width; oc.height = c.height; }
   const y = oc.getContext('2d');
   y.setTransform(1, 0, 0, 1, 0, 0); y.globalCompositeOperation = 'source-over'; y.clearRect(0, 0, oc.width, oc.height);
-  y.setTransform(dpr, 0, 0, dpr, 0, 0); y.fillStyle = ink;
+  y.setTransform(dpr, 0, 0, dpr, -VIEW.ox * k * dpr, -VIEW.oy * k * dpr); y.fillStyle = ink;
   y.beginPath(); invBox(o).forEach(([wx, wy], i) => i ? y.lineTo(wx * k, wy * k) : y.moveTo(wx * k, wy * k)); y.closePath(); y.fill();
   y.globalCompositeOperation = 'destination-out';
   if (isRaster(o)) {
-    const pv = previewOf(o);
+    const pv = previewOf(o, Math.max(g.cw, g.ch) * k * dpr);
     if (pv) {
       y.save(); y.translate(g.cx * k, g.cy * k); y.rotate(o.rot * Math.PI / 180); y.scale(o.flipH ? -1 : 1, o.flipV ? -1 : 1);
       for (let i = 0; i < 2; i++) y.drawImage(pv, -g.cw / 2 * k, -g.ch / 2 * k, g.cw * k, g.ch * k);  // preview alpha is 230
@@ -3079,14 +3102,21 @@ function drawNow() {
   const c = $('#bed'), dpr = window.devicePixelRatio || 1, W = c.clientWidth || 600, H = W * BED.h / BED.w;
   if (c.width !== Math.round(W * dpr) || c.height !== Math.round(H * dpr)) { c.style.height = H + 'px'; c.width = Math.round(W * dpr); c.height = Math.round(H * dpr); }
   const x = c.getContext('2d'), css = getComputedStyle(document.documentElement), col = n => css.getPropertyValue(n).trim();
-  const k = W / BED.w, fl = $('#origin').value === 'fl';
+  clampView();
+  const k = W / BED.w * VIEW.z, fl = $('#origin').value === 'fl', PW = BED.w * k, PH = BED.h * k;   // px per mm at this zoom
   const S = (X, Y) => [X * k, Y * k];                       // plate mm -> px
   const M = (X, Y) => S(X, fl ? BED.h - Y : Y);             // machine mm -> px
-  x.setTransform(dpr, 0, 0, dpr, 0, 0);
-  x.fillStyle = col('--bed'); x.fillRect(0, 0, W, H);
-  if (CAM.img && $('#camShow').checked && !isRot()) { x.globalAlpha = +$('#camAlpha').value; x.drawImage(CAM.img, 0, 0, W, H); x.globalAlpha = 1; }
-  for (let v = 0; v <= BED.w; v += 10) { x.strokeStyle = col(v % 50 ? '--grid' : '--grid2'); x.lineWidth = 1; x.beginPath(); x.moveTo(v * k + .5, 0); x.lineTo(v * k + .5, H); x.stroke(); }
-  for (let v = 0; v <= BED.h; v += 10) { x.strokeStyle = col(v % 50 ? '--grid' : '--grid2'); x.beginPath(); x.moveTo(0, v * k + .5); x.lineTo(W, v * k + .5); x.stroke(); }
+  x.setTransform(dpr, 0, 0, dpr, -VIEW.ox * k * dpr, -VIEW.oy * k * dpr);
+  x.fillStyle = col('--bed'); x.fillRect(0, 0, PW, PH);
+  if (CAM.img && $('#camShow').checked && !isRot()) { x.globalAlpha = +$('#camAlpha').value; x.imageSmoothingQuality = 'high'; x.drawImage(CAM.img, 0, 0, PW, PH); x.globalAlpha = 1; }
+  if (k >= 10) {  // zoomed in: 1 mm grid
+    x.strokeStyle = col('--grid'); x.globalAlpha = 0.5; x.lineWidth = 1; x.beginPath();
+    for (let v = 0; v <= BED.w; v++) if (v % 10) { x.moveTo(v * k + .5, 0); x.lineTo(v * k + .5, PH); }
+    for (let v = 0; v <= BED.h; v++) if (v % 10) { x.moveTo(0, v * k + .5); x.lineTo(PW, v * k + .5); }
+    x.stroke(); x.globalAlpha = 1;
+  }
+  for (let v = 0; v <= BED.w; v += 10) { x.strokeStyle = col(v % 50 ? '--grid' : '--grid2'); x.lineWidth = 1; x.beginPath(); x.moveTo(v * k + .5, 0); x.lineTo(v * k + .5, PH); x.stroke(); }
+  for (let v = 0; v <= BED.h; v += 10) { x.strokeStyle = col(v % 50 ? '--grid' : '--grid2'); x.beginPath(); x.moveTo(0, v * k + .5); x.lineTo(PW, v * k + .5); x.stroke(); }
   x.fillStyle = col('--mut'); x.font = '11px system-ui'; const o0 = M(0, 0); x.fillText('0,0', o0[0] + 4, fl ? o0[1] - 4 : o0[1] + 12);
   // objects
   const ink = col('--ink'), bad = col('--bad');
@@ -3096,8 +3126,8 @@ function drawNow() {
     x.globalAlpha = (app.raw ? 0.25 : 1) * (o.locked ? 0.6 : 1);
     if (o.mode === 'fillinv') drawInverted(x, o, g, k, ink, c, dpr);
     else if (isRaster(o)) {
-      const pv = previewOf(o);
-      if (pv) { x.save(); x.translate(g.cx * k, g.cy * k); x.rotate(o.rot * Math.PI / 180); x.scale(o.flipH ? -1 : 1, o.flipV ? -1 : 1); x.drawImage(pv, -g.cw / 2 * k, -g.ch / 2 * k, g.cw * k, g.ch * k); x.restore(); }
+      const pv = previewOf(o, Math.max(g.cw, g.ch) * k * dpr);
+      if (pv) { x.save(); x.imageSmoothingQuality = 'high'; x.translate(g.cx * k, g.cy * k); x.rotate(o.rot * Math.PI / 180); x.scale(o.flipH ? -1 : 1, o.flipV ? -1 : 1); x.drawImage(pv, -g.cw / 2 * k, -g.ch / 2 * k, g.cw * k, g.ch * k); x.restore(); }
     } else {
       x.beginPath();
       for (const poly of localPolys(o)) poly.forEach(([u, v], i) => { const [wx, wy] = toWorld(o, g, u, v); i ? x.lineTo(wx * k, wy * k) : x.moveTo(wx * k, wy * k); });
@@ -3170,7 +3200,17 @@ function drawNow() {
 // Shift/Ctrl+click = add / remove from the selection
 // drag on empty    = rubber-band selection (Shift adds)
 let drag = null;
-function evMM(e) { const r = $('#bed').getBoundingClientRect(), k = r.width / BED.w; return {x: (e.clientX - r.left) / k, y: (e.clientY - r.top) / k, k}; }
+function evMM(e) {
+  const r = $('#bed').getBoundingClientRect(), k = r.width / BED.w * VIEW.z;
+  return {x: VIEW.ox + (e.clientX - r.left) / k, y: VIEW.oy + (e.clientY - r.top) / k, k};
+}
+// pan: Space + drag, middle button, or two fingers (which also pinch-zoom)
+const PAN = {space: false, ptrs: new Map(), pan: null, pinch: null};
+function panStart(e) { PAN.pan = {x: e.clientX, y: e.clientY, ox: VIEW.ox, oy: VIEW.oy}; $('#bed').setPointerCapture(e.pointerId); $('#bed').style.cursor = 'grabbing'; }
+function panMove(e) {
+  const r = $('#bed').getBoundingClientRect(), k = r.width / BED.w * VIEW.z;
+  VIEW.ox = PAN.pan.ox - (e.clientX - PAN.pan.x) / k; VIEW.oy = PAN.pan.oy - (e.clientY - PAN.pan.y) / k; clampView(); draw();
+}
 function handleAt(p) {
   const o = ed.sel; if (!o || app.raw || ed.selSet.size !== 1 || o.locked) return null;
   const h = handles(o, p.k), rad = 13 / p.k, d = q => Math.hypot(p.x - q[0], p.y - q[1]);
@@ -3179,6 +3219,15 @@ function handleAt(p) {
   return null;
 }
 function onPointerDown(e) {
+  PAN.ptrs.set(e.pointerId, {x: e.clientX, y: e.clientY});
+  if (PAN.ptrs.size === 2) {  // second finger: pinch / two-finger pan, abandon any edit drag
+    if (drag && drag.snap && snapshot() !== drag.snap) restore(drag.snap);
+    drag = null; PAN.pan = null;
+    const [a, b] = [...PAN.ptrs.values()], p = evMM({clientX: (a.x + b.x) / 2, clientY: (a.y + b.y) / 2});
+    PAN.pinch = {d: Math.hypot(a.x - b.x, a.y - b.y), z: VIEW.z, mx: p.x, my: p.y};
+    return;
+  }
+  if (e.button === 1 || PAN.space) { e.preventDefault(); panStart(e); return; }
   if (app.raw) return;
   const p = evMM(e), h = handleAt(p);
   if (app.focusPick) { app.focusPt = {x: clamp(p.x, 0, BED.w), y: clamp(p.y, 0, BED.h)}; app.focusPick = false; focusNote(); draw(); return; }
@@ -3208,6 +3257,14 @@ function onPointerDown(e) {
   if (drag) { $('#bed').setPointerCapture(e.pointerId); e.preventDefault(); }
 }
 function onPointerMove(e) {
+  if (PAN.ptrs.has(e.pointerId)) PAN.ptrs.set(e.pointerId, {x: e.clientX, y: e.clientY});
+  if (PAN.pinch && PAN.ptrs.size === 2) {
+    const [a, b] = [...PAN.ptrs.values()], r = $('#bed').getBoundingClientRect();
+    VIEW.z = clamp(PAN.pinch.z * Math.hypot(a.x - b.x, a.y - b.y) / PAN.pinch.d, 1, 40);
+    const k = r.width / BED.w * VIEW.z, cx = (a.x + b.x) / 2 - r.left, cy = (a.y + b.y) / 2 - r.top;
+    VIEW.ox = PAN.pinch.mx - cx / k; VIEW.oy = PAN.pinch.my - cy / k; clampView(); zoomLabel(); draw(); return;
+  }
+  if (PAN.pan) { panMove(e); return; }
   const p = evMM(e), cv = $('#bed');
   if (drag && drag.type === 'focus') { app.focusPt = {x: clamp(p.x, 0, BED.w), y: clamp(p.y, 0, BED.h)}; focusNote(); draw(); return; }
   if (!drag) {
@@ -3238,7 +3295,10 @@ function onPointerMove(e) {
   }
   syncProps(); draw();
 }
-function onPointerUp() {
+function onPointerUp(e) {
+  if (e && e.pointerId !== undefined) PAN.ptrs.delete(e.pointerId);
+  if (PAN.pinch) { if (PAN.ptrs.size < 2) PAN.pinch = null; return; }
+  if (PAN.pan) { PAN.pan = null; $('#bed').style.cursor = PAN.space ? 'grab' : 'default'; return; }
   if (!drag) return;
   const d = drag; drag = null;
   if (d.type === 'focus') return;
@@ -3256,6 +3316,13 @@ function onPointerUp() {
   if (snapshot() !== d.snap) { pushUndo(d.snap); afterEdit(); }
 }
 function onKey(e) {
+  const tg = (e.target.tagName || '').toLowerCase(), typing = ['input', 'textarea', 'select'].includes(tg);
+  if (!typing && !e.ctrlKey && !e.metaKey && !e.altKey) {
+    if (e.key === ' ' && !PAN.space) { PAN.space = true; $('#bed').style.cursor = 'grab'; e.preventDefault(); return; }
+    if (e.key === '+' || e.key === '=') { e.preventDefault(); zoomAt(1.25); return; }
+    if (e.key === '-' || e.key === '_') { e.preventDefault(); zoomAt(0.8); return; }
+    if (e.key === '0') { e.preventDefault(); zoomReset(); return; }
+  }
   if (e.key === 'Escape' && app.grbl) { e.preventDefault(); stopNow(); return; }
   const tag = (e.target.tagName || '').toLowerCase();
   if (['input', 'textarea', 'select'].includes(tag) || app.raw) return;
@@ -3612,6 +3679,24 @@ for (const f of FONTS) { const o = document.createElement('option'); o.value = f
 // canvas
 const cv = $('#bed');
 cv.addEventListener('pointerdown', onPointerDown);
+// Ctrl/⌘ + wheel or trackpad pinch = zoom at the pointer; plain wheel pans while zoomed in
+cv.addEventListener('wheel', e => {
+  if (e.ctrlKey || e.metaKey) { e.preventDefault(); const p = evMM(e); zoomAt(Math.exp(-e.deltaY * (e.deltaMode ? 0.05 : 0.0025)), p.x, p.y); return; }
+  if (VIEW.z <= 1) return;   // not zoomed: let the page scroll
+  e.preventDefault();
+  const k = cv.getBoundingClientRect().width / BED.w * VIEW.z, f = e.deltaMode ? 16 : 1;
+  VIEW.ox += (e.shiftKey ? e.deltaY : e.deltaX) * f / k; VIEW.oy += (e.shiftKey ? 0 : e.deltaY) * f / k; clampView(); draw();
+}, {passive: false});
+cv.addEventListener('auxclick', e => { if (e.button === 1) e.preventDefault(); });
+document.addEventListener('keyup', e => { if (e.key === ' ' && PAN.space) { PAN.space = false; if (!PAN.pan) cv.style.cursor = 'default'; } });
+$('#zoomIn').addEventListener('click', () => zoomAt(1.5));
+$('#zoomOut').addEventListener('click', () => zoomAt(1 / 1.5));
+$('#zoomPct').addEventListener('click', zoomReset);
+$('#zoomSel').addEventListener('click', () => {   // zoom to the selection (or everything)
+  const list = selList().length ? selList() : ed.objs; if (!list.length) return zoomReset();
+  const b = groupBBox(list), z = clamp(0.8 * Math.min(BED.w / Math.max(1, b.x1 - b.x0), BED.h / Math.max(1, b.y1 - b.y0)), 1, 40);
+  VIEW.z = z; VIEW.ox = (b.x0 + b.x1) / 2 - BED.w / z / 2; VIEW.oy = (b.y0 + b.y1) / 2 - BED.h / z / 2; clampView(); zoomLabel(); draw();
+});
 cv.addEventListener('pointermove', onPointerMove);
 cv.addEventListener('pointerup', onPointerUp);
 cv.addEventListener('pointercancel', onPointerUp);
